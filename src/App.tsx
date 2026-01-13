@@ -580,7 +580,6 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
         <div className="mx-auto px-6 py-4 flex items-center gap-6">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-3">
-              <img src="/image.png" alt="Ignite Logo" className="h-12 object-contain" />
               <div>
                 <h1 className="text-xl font-bold text-slate-800">IgniteAIE Document Builder</h1>
                 <p className="text-sm text-slate-500">Ignite AI Engine powered document generation</p>
