@@ -30,6 +30,10 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
@@ -44,29 +48,15 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: {
-        headers: {
-          Authorization: authHeader,
-        },
-      },
-    });
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
-      console.error("Auth validation failed:", {
-        error: authError,
-        hasUser: !!user,
-      });
+      console.error("Auth error:", authError);
       return new Response(
         JSON.stringify({
-          error: "Unauthorized",
-          message: "Authentication failed",
-          details: authError?.message
+          error: "Invalid JWT",
+          details: authError?.message || "User not authenticated"
         }),
         {
           status: 401,
@@ -77,8 +67,6 @@ Deno.serve(async (req: Request) => {
         }
       );
     }
-
-    console.log("User authenticated successfully:", user.id);
 
     const awsAccessKeyId = Deno.env.get("AWS_ACCESS_KEY_ID")?.trim();
     const awsSecretAccessKey = Deno.env.get("AWS_SECRET_ACCESS_KEY")?.trim();
