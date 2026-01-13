@@ -1,6 +1,7 @@
-import { FolderOpen, File, Download, RefreshCw, Upload, Trash2, RefreshCcw, X } from 'lucide-react';
+import { FolderOpen, File, Download, RefreshCw, Upload, Trash2, RefreshCcw, X, Copy } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { RepositoryBrowser } from './RepositoryBrowser';
 
 interface S3Object {
   Key: string;
@@ -26,6 +27,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
   const [deletingKey, setDeletingKey] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string>('');
+  const [showRepositoryBrowser, setShowRepositoryBrowser] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const statusCheckIntervalRef = useRef<number | null>(null);
 
@@ -425,11 +427,11 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => fetchObjects(true)}
             disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
+            className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
@@ -437,16 +439,25 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
+            className="px-4 py-2 bg-emerald-600 dark:bg-emerald-500 text-white rounded-lg hover:bg-emerald-700 dark:hover:bg-emerald-600 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
           >
             {uploading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             Upload
+          </button>
+          <button
+            onClick={() => setShowRepositoryBrowser(true)}
+            disabled={!selectedKnowledgeBase}
+            className="px-4 py-2 bg-violet-600 dark:bg-violet-500 text-white rounded-lg hover:bg-violet-700 dark:hover:bg-violet-600 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
+            title={!selectedKnowledgeBase ? 'Select a knowledge base first' : 'Copy files from repository'}
+          >
+            <Copy className="w-4 h-4" />
+            Copy from Repository
           </button>
           <div className="flex items-center gap-2">
             <button
               onClick={handleSync}
               disabled={syncing || !selectedKnowledgeBase}
-              className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
+              className="px-4 py-2 bg-amber-600 dark:bg-amber-500 text-white rounded-lg hover:bg-amber-700 dark:hover:bg-amber-600 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
               title={!selectedKnowledgeBase ? 'Select a knowledge base first' : 'Sync S3 bucket with knowledge base'}
             >
               {syncing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCcw className="w-4 h-4" />}
@@ -455,7 +466,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
             {syncing && (
               <button
                 onClick={handleStopSync}
-                className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors inline-flex items-center gap-1.5"
+                className="px-3 py-2 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors inline-flex items-center gap-1.5"
                 title="Stop sync"
               >
                 <X className="w-4 h-4" />
@@ -463,7 +474,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
               </button>
             )}
             {syncStatus && (
-              <span className={`text-sm ${syncing ? 'text-amber-600' : syncStatus.includes('failed') || syncStatus.includes('cancelled') ? 'text-red-600' : 'text-emerald-600'}`}>
+              <span className={`text-sm ${syncing ? 'text-amber-600 dark:text-amber-400' : syncStatus.includes('failed') || syncStatus.includes('cancelled') ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                 {syncStatus}
               </span>
             )}
@@ -482,10 +493,10 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
             placeholder="Search files..."
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
-            className={`w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${filterText ? 'pr-20' : ''}`}
+            className={`w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${filterText ? 'pr-20' : ''}`}
           />
           {filterText && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 bg-white px-1">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-700 px-1">
               {filteredObjects.length} of {allObjects.length}
             </div>
           )}
@@ -493,41 +504,41 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
       </div>
 
       {filteredObjects.length === 0 && !loading ? (
-        <div className="text-center py-8 text-slate-400 border border-slate-200 rounded-lg">
+        <div className="text-center py-8 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 rounded-lg">
           <FolderOpen className="w-12 h-12 mx-auto mb-3" />
           <p>{filterText ? 'No files match your search' : 'No Files Found'}</p>
         </div>
       ) : (
-        <div className="border border-slate-200 rounded-lg overflow-hidden">
+        <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-slate-50 border-b border-slate-200">
+            <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
               <tr>
-                <th className="text-left px-4 py-3 text-sm font-medium text-slate-700">Name</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-slate-700">Size</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-slate-700">Last Modified</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-slate-700">Actions</th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300">Name</th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300">Size</th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300">Last Modified</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
               {filteredObjects.map((obj) => (
-                <tr key={obj.Key} className="hover:bg-slate-50 transition-colors">
+                <tr key={obj.Key} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       {getFileIcon(obj.Key)}
-                      <span className="text-sm text-slate-800 truncate max-w-md" title={obj.Key}>
+                      <span className="text-sm text-slate-800 dark:text-slate-200 truncate max-w-md" title={obj.Key}>
                         {getFileName(obj.Key)}
                       </span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-600">{formatSize(obj.Size)}</td>
-                  <td className="px-4 py-3 text-sm text-slate-600">{formatDate(obj.LastModified)}</td>
+                  <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{formatSize(obj.Size)}</td>
+                  <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{formatDate(obj.LastModified)}</td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex gap-2 justify-end">
                       <button
                         onClick={() => handleDownload(obj.Key)}
                         disabled={loadingUrl === obj.Key || obj.Key.endsWith('/')}
-                        className="inline-flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="inline-flex items-center gap-1 px-3 py-1 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         title={obj.Key.endsWith('/') ? 'Cannot download folders' : 'View/Download'}
                       >
                         {loadingUrl === obj.Key ? (
@@ -540,7 +551,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
                       <button
                         onClick={() => handleDelete(obj.Key)}
                         disabled={deletingKey === obj.Key || obj.Key.endsWith('/')}
-                        className="inline-flex items-center gap-1 px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="inline-flex items-center gap-1 px-3 py-1 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         title={obj.Key.endsWith('/') ? 'Cannot delete folders' : 'Delete'}
                       >
                         {deletingKey === obj.Key ? (
@@ -565,11 +576,22 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
           <button
             onClick={() => fetchObjects(false)}
             disabled={loading}
-            className="px-6 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50"
+            className="px-6 py-2 bg-slate-600 dark:bg-slate-700 text-white rounded-lg hover:bg-slate-700 dark:hover:bg-slate-600 transition-colors disabled:opacity-50"
           >
             {loading ? 'Loading...' : 'Load More'}
           </button>
         </div>
+      )}
+
+      {showRepositoryBrowser && (
+        <RepositoryBrowser
+          onError={onError}
+          selectedKnowledgeBase={selectedKnowledgeBase}
+          onClose={() => {
+            setShowRepositoryBrowser(false);
+            fetchObjects(true);
+          }}
+        />
       )}
     </div>
   );
