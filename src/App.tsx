@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FileText, LogOut, Info, Trash2 } from 'lucide-react';
+import { FileText, LogOut, Info, Trash2, Sun, Moon } from 'lucide-react';
 import { supabase, type Document } from './lib/supabase';
 import { AuthForm } from './components/AuthForm';
 import { UpdatePasswordForm } from './components/UpdatePasswordForm';
@@ -13,6 +13,7 @@ import { KnowledgeBaseSelector } from './components/KnowledgeBaseSelector';
 import { ResizablePanel } from './components/ResizablePanel';
 import { ResizablePanelHorizontal } from './components/ResizablePanelHorizontal';
 import { S3BucketBrowser } from './components/S3BucketBrowser';
+import { useTheme } from './hooks/useTheme';
 
 interface FoundationModel {
   modelArn: string;
@@ -69,6 +70,7 @@ function isModelSupportedForKnowledgeBase(modelId: string): boolean {
 }
 
 function App() {
+  const { theme, toggleTheme } = useTheme();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -566,8 +568,8 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-600">Loading...</div>
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
+        <div className="text-slate-600 dark:text-slate-300">Loading...</div>
       </div>
     );
   }
@@ -577,23 +579,30 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <header className="bg-white border-b border-slate-200 shadow-sm">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+      <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="mx-auto px-6 py-4 flex items-center gap-6">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-3">
               <img src="/image.png" alt="Ignite Logo" className="h-12 object-contain" />
               <div>
-                <h1 className="text-xl font-bold text-slate-800">IgniteAIE Document Builder</h1>
-                <p className="text-sm text-slate-500">Ignite AI Engine powered document generation</p>
+                <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">IgniteAIE Document Builder</h1>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Ignite AI Engine powered document generation</p>
               </div>
             </div>
             <button
               onClick={() => setShowInfoDialog(true)}
-              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
               title="How it works"
             >
               <Info className="w-5 h-5" />
+            </button>
+            <button
+              onClick={toggleTheme}
+              className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
           </div>
           <div className="flex-1 space-y-3">
@@ -603,9 +612,9 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
                 id="use-kb"
                 checked={useKnowledgeBase}
                 onChange={(e) => setUseKnowledgeBase(e.target.checked)}
-                className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 focus:ring-2"
+                className="w-4 h-4 text-blue-600 border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500 focus:ring-2"
               />
-              <label htmlFor="use-kb" className="text-sm font-medium text-slate-700 cursor-pointer">
+              <label htmlFor="use-kb" className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
                 Use Knowledge Base
               </label>
             </div>
@@ -634,10 +643,10 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
           minLeftPercent={25}
           minRightPercent={30}
           leftPanel={
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col">
-              <div className="p-4 border-b border-slate-200">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col">
+              <div className="p-4 border-b border-slate-200 dark:border-slate-700">
                 <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-lg font-semibold text-slate-800">Ignite AI Engine</h2>
+                  <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Ignite AI Engine</h2>
                   <button
                     type="button"
                     onClick={() => {
@@ -647,7 +656,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
                       setCurrentCitations([]);
                       setSelectedDocument(null);
                     }}
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                     Clear
@@ -679,14 +688,14 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
               minLeftPercent={30}
               minRightPercent={30}
               leftPanel={
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col" style={{ minHeight: '600px' }}>
-                  <div className="flex items-center gap-4 mb-4 border-b border-slate-200">
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex flex-col" style={{ minHeight: '600px' }}>
+                  <div className="flex items-center gap-4 mb-4 border-b border-slate-200 dark:border-slate-700">
                     <button
                       onClick={() => setActiveTab('documents')}
                       className={`pb-3 px-2 text-sm font-medium transition-colors relative ${
                         activeTab === 'documents'
-                          ? 'text-blue-600 border-b-2 border-blue-600'
-                          : 'text-slate-600 hover:text-slate-800'
+                          ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                       }`}
                     >
                       Documents
@@ -695,8 +704,8 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
                       onClick={() => setActiveTab('s3-browser')}
                       className={`pb-3 px-2 text-sm font-medium transition-colors relative ${
                         activeTab === 's3-browser'
-                          ? 'text-blue-600 border-b-2 border-blue-600'
-                          : 'text-slate-600 hover:text-slate-800'
+                          ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                       }`}
                     >
                       File Browser
@@ -705,7 +714,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
 
                   {activeTab === 'documents' ? (
                     <>
-                      <h2 className="text-lg font-semibold text-slate-800 mb-4">Your Documents (drag to Create Document window)</h2>
+                      <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4">Your Documents (drag to Create Document window)</h2>
                       <div className="flex-1 overflow-y-auto">
                         <DocumentList
                           documents={documents}
@@ -717,7 +726,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
                     </>
                   ) : (
                     <>
-                      <h2 className="text-lg font-semibold text-slate-800 mb-4">Knowledge Base Contents</h2>
+                      <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4">Knowledge Base Contents</h2>
                       <div className="flex-1 overflow-y-auto">
                         <S3BucketBrowser
                           onError={setError}
@@ -729,7 +738,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
                 </div>
               }
               rightPanel={
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col" style={{ minHeight: '600px' }}>
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex flex-col" style={{ minHeight: '600px' }}>
                   <WorkspaceEditor
                     content={workspaceContent}
                     onChange={setWorkspaceContent}
@@ -747,13 +756,13 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
       {error && <ErrorDialog error={error} onClose={() => setError(null)} />}
 
       {showInfoDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-slate-200 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-slate-800">How Document Builder Works</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">How Document Builder Works</h2>
               <button
                 onClick={() => setShowInfoDialog(false)}
-                className="text-slate-400 hover:text-slate-600 transition-colors"
+                className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -763,20 +772,20 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
 
             <div className="p-6 space-y-6">
               <div>
-                <h3 className="text-lg font-semibold text-slate-800 mb-3">Knowledge Base Query Flow (RAG)</h3>
-                <div className="space-y-4 text-slate-600">
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-3">Knowledge Base Query Flow (RAG)</h3>
+                <div className="space-y-4 text-slate-600 dark:text-slate-300">
                   <div>
-                    <h4 className="font-medium text-slate-700 mb-1">1. User Input</h4>
+                    <h4 className="font-medium text-slate-700 dark:text-slate-200 mb-1">1. User Input</h4>
                     <p className="text-sm">You enter a prompt and select a foundation model from the dropdown.</p>
                   </div>
 
                   <div>
-                    <h4 className="font-medium text-slate-700 mb-1">2. Query Submission</h4>
+                    <h4 className="font-medium text-slate-700 dark:text-slate-200 mb-1">2. Query Submission</h4>
                     <p className="text-sm">The frontend sends your prompt along with the selected model's ARN to the edge function.</p>
                   </div>
 
                   <div>
-                    <h4 className="font-medium text-slate-700 mb-1">3. Knowledge Base RAG Process</h4>
+                    <h4 className="font-medium text-slate-700 dark:text-slate-200 mb-1">3. Knowledge Base RAG Process</h4>
                     <p className="text-sm mb-2">When "Use Knowledge Base" is checked, the edge function calls AWS Bedrock's retrieveAndGenerate API, which automatically performs:</p>
                     <ul className="list-disc list-inside text-sm space-y-1 ml-4">
                       <li><strong>Retrieval:</strong> Searches the Knowledge Base vector store for the 5 most relevant documents</li>
@@ -787,34 +796,34 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
                   </div>
 
                   <div>
-                    <h4 className="font-medium text-slate-700 mb-1">4. Response with Citations</h4>
+                    <h4 className="font-medium text-slate-700 dark:text-slate-200 mb-1">4. Response with Citations</h4>
                     <p className="text-sm">Bedrock returns the generated answer along with citations showing which documents were used, including text excerpts and source locations.</p>
                   </div>
 
                   <div>
-                    <h4 className="font-medium text-slate-700 mb-1">5. AI-Generated Title</h4>
+                    <h4 className="font-medium text-slate-700 dark:text-slate-200 mb-1">5. AI-Generated Title</h4>
                     <p className="text-sm">After receiving the response, the system uses Claude 3.5 Haiku to automatically generate a concise, descriptive 5-10 word title that summarizes the document content. This title is displayed in bold in your document list.</p>
                   </div>
 
                   <div>
-                    <h4 className="font-medium text-slate-700 mb-1">6. Display & Save</h4>
+                    <h4 className="font-medium text-slate-700 dark:text-slate-200 mb-1">6. Display & Save</h4>
                     <p className="text-sm">The answer, title, citations, model information, and metadata are displayed in the UI and saved to your database for future reference.</p>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-medium text-blue-900 mb-2">Without Knowledge Base</h4>
-                <p className="text-sm text-blue-800">
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <h4 className="font-medium text-blue-900 dark:text-blue-300 mb-2">Without Knowledge Base</h4>
+                <p className="text-sm text-blue-800 dark:text-blue-300">
                   When "Use Knowledge Base" is unchecked, your query goes directly to the selected foundation model via Bedrock's Converse API, without any document retrieval - just a standard LLM conversation.
                 </p>
               </div>
             </div>
 
-            <div className="p-6 border-t border-slate-200 flex justify-end">
+            <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end">
               <button
                 onClick={() => setShowInfoDialog(false)}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-6 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
               >
                 Got it
               </button>

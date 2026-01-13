@@ -79,7 +79,7 @@ export function DocumentViewer({ content, prompt, citations = [], usedKnowledgeB
 
   if (!content) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4">
+      <div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500 gap-4">
         <FileText className="w-16 h-16" />
         <p className="text-lg">Your generated document will appear here</p>
       </div>
@@ -88,14 +88,14 @@ export function DocumentViewer({ content, prompt, citations = [], usedKnowledgeB
 
   return (
     <div className="flex flex-col">
-      <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-200">
-        <div className="flex items-center gap-2 text-slate-600">
+      <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-200 dark:border-slate-700">
+        <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
           <FileText className="w-5 h-5" />
           <span className="font-medium">Generated Document</span>
         </div>
         <button
           onClick={handleCopy}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
+          className="flex items-center gap-2 px-3 py-1.5 text-sm bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg transition-colors"
         >
           {copied ? (
             <>
@@ -112,22 +112,22 @@ export function DocumentViewer({ content, prompt, citations = [], usedKnowledgeB
       </div>
 
       {prompt && (
-        <div className="mb-3 p-2.5 bg-blue-50 border-l-4 border-blue-500 rounded">
+        <div className="mb-3 p-2.5 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 dark:border-blue-600 rounded">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 flex-1 min-w-0">
-              <p className="text-sm text-blue-700 font-medium">Prompt:</p>
+              <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">Prompt:</p>
               <div className="flex items-center gap-2">
                 {usedKnowledgeBase !== undefined && (
                   <span className={`text-xs px-2 py-0.5 rounded ${
                     usedKnowledgeBase
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-slate-200 text-slate-700'
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                      : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                   }`}>
                     {usedKnowledgeBase ? 'RAG' : 'Direct'}
                   </span>
                 )}
                 {modelName && (
-                  <span className="text-xs px-2 py-0.5 rounded bg-blue-200 text-blue-800 max-w-[150px] truncate" title={modelName}>
+                  <span className="text-xs px-2 py-0.5 rounded bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200 max-w-[150px] truncate" title={modelName}>
                     {modelName}
                   </span>
                 )}
@@ -135,14 +135,14 @@ export function DocumentViewer({ content, prompt, citations = [], usedKnowledgeB
             </div>
             <button
               onClick={() => setPromptCollapsed(!promptCollapsed)}
-              className="text-blue-700 hover:text-blue-900 transition-colors flex-shrink-0"
+              className="text-blue-700 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 transition-colors flex-shrink-0"
               title={promptCollapsed ? "Expand prompt" : "Collapse prompt"}
             >
               {promptCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
             </button>
           </div>
           {!promptCollapsed && (
-            <p className="text-sm text-blue-600 mt-2">{prompt}</p>
+            <p className="text-sm text-blue-600 dark:text-blue-300 mt-2">{prompt}</p>
           )}
         </div>
       )}
@@ -153,17 +153,17 @@ export function DocumentViewer({ content, prompt, citations = [], usedKnowledgeB
             draggable
             onDragStart={(e) => handleDragStart(e, content)}
             onDragEnd={handleDragEnd}
-            className={`whitespace-pre-wrap text-slate-800 leading-relaxed cursor-move select-text ${
+            className={`whitespace-pre-wrap text-slate-800 dark:text-slate-200 leading-relaxed cursor-move select-text ${
               dragging ? 'opacity-50' : ''
-            } hover:bg-blue-50 rounded p-2 transition-colors`}
+            } hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded p-2 transition-colors`}
           >
             {content}
           </div>
         </div>
 
         {citations.length > 0 && (
-          <div className="mt-6 pt-4 border-t border-slate-200">
-            <div className="flex items-center gap-2 text-slate-700 font-medium mb-3">
+          <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-medium mb-3">
               <BookOpen className="w-5 h-5" />
               <span>Citations</span>
             </div>
@@ -177,9 +177,9 @@ export function DocumentViewer({ content, prompt, citations = [], usedKnowledgeB
                 return (
                   <div
                     key={index}
-                    className="p-3 bg-amber-50 border-l-4 border-amber-400 rounded text-sm"
+                    className="p-3 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-400 dark:border-amber-600 rounded text-sm"
                   >
-                    <p className="text-amber-900 mb-2">{citation.text}</p>
+                    <p className="text-amber-900 dark:text-amber-200 mb-2">{citation.text}</p>
 
                     {s3Uri && (
                       <div className="mt-2 space-y-1">

@@ -34,7 +34,7 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
           value={prompt}
           onChange={(e) => onPromptChange(e.target.value)}
           placeholder="Ask a question about your knowledge base... (e.g., What is our cloud migration strategy?)"
-          className="w-full min-h-[200px] p-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-slate-800 placeholder-slate-400"
+          className="w-full min-h-[200px] p-3 border-2 border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-slate-800 placeholder-slate-400 dark:placeholder-slate-500"
           disabled={isLoading || isImprovingPrompt}
         />
       </div>
@@ -46,7 +46,7 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
                 type="button"
                 onClick={handleImprovePrompt}
                 disabled={isLoading || isImprovingPrompt || !prompt.trim()}
-                className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors font-medium"
+                className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors font-medium"
               >
                 {isImprovingPrompt ? (
                   <>
@@ -71,7 +71,7 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
                     disabled={isLoading || isImprovingPrompt || !prompt.trim()}
                     className="w-3.5 h-3.5 text-blue-600 border-slate-300 focus:ring-blue-500 focus:ring-2 disabled:cursor-not-allowed"
                   />
-                  <span className={`text-xs font-medium ${isLoading || isImprovingPrompt || !prompt.trim() ? 'text-slate-400' : 'text-slate-700'}`}>Respond as Ignite IT</span>
+                  <span className={`text-xs font-medium ${isLoading || isImprovingPrompt || !prompt.trim() ? 'text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-300'}`}>Respond as Ignite IT</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -81,9 +81,9 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
                     checked={companyVoice === 'ignite-action'}
                     onChange={(e) => setCompanyVoice(e.target.value as 'ignite-it' | 'ignite-action')}
                     disabled={isLoading || isImprovingPrompt || !prompt.trim()}
-                    className="w-3.5 h-3.5 text-blue-600 border-slate-300 focus:ring-blue-500 focus:ring-2 disabled:cursor-not-allowed"
+                    className="w-3.5 h-3.5 text-blue-600 border-slate-300 dark:border-slate-600 focus:ring-blue-500 focus:ring-2 disabled:cursor-not-allowed"
                   />
-                  <span className={`text-xs font-medium ${isLoading || isImprovingPrompt || !prompt.trim() ? 'text-slate-400' : 'text-slate-700'}`}>Respond as IgniteAction</span>
+                  <span className={`text-xs font-medium ${isLoading || isImprovingPrompt || !prompt.trim() ? 'text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-300'}`}>Respond as IgniteAction</span>
                 </label>
               </div>
             </>
@@ -92,7 +92,7 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
         <button
           type="submit"
           disabled={isLoading || isImprovingPrompt || !prompt.trim()}
-          className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors font-medium"
+          className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:cursor-not-allowed transition-colors font-medium"
         >
           {isLoading ? (
             <>
