@@ -57,12 +57,30 @@ Deno.serve(async (req: Request) => {
 
     const token = authHeader.replace("Bearer ", "");
     console.log("[list-knowledge-bases] Verifying user token");
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
-    if (authError || !user) {
-      console.error("[list-knowledge-bases] Auth error:", authError);
+    let user;
+    try {
+      const { data, error: authError } = await supabase.auth.getUser(token);
+      user = data?.user;
+
+      if (authError || !user) {
+        console.error("[list-knowledge-bases] Auth error:", authError);
+        console.error("[list-knowledge-bases] Token:", token?.substring(0, 20) + "...");
+        return new Response(
+          JSON.stringify({ error: "Unauthorized - Please sign out and sign in again", details: authError?.message }),
+          {
+            status: 401,
+            headers: {
+              ...corsHeaders,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+      }
+    } catch (e) {
+      console.error("[list-knowledge-bases] Exception during auth:", e);
       return new Response(
-        JSON.stringify({ error: "Unauthorized", details: authError?.message }),
+        JSON.stringify({ error: "Authentication failed", details: e instanceof Error ? e.message : "Unknown error" }),
         {
           status: 401,
           headers: {
@@ -144,7 +162,6 @@ Deno.serve(async (req: Request) => {
     const knowledgeBases: KnowledgeBase[] = data.knowledgeBaseSummaries || [];
     console.log("[list-knowledge-bases] Found knowledge bases:", knowledgeBases.length);
 
-    // Fetch data source IDs for each knowledge base
     const knowledgeBasesWithDataSources = await Promise.all(
       knowledgeBases.map(async (kb) => {
         try {

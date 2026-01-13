@@ -45,13 +45,44 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const authHeader = req.headers.get("Authorization")!;
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user } } = await supabase.auth.getUser(token);
+    const authHeader = req.headers.get("Authorization");
 
-    if (!user) {
+    if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
+        JSON.stringify({ error: "Missing Authorization header" }),
+        {
+          status: 401,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    let user;
+    try {
+      const { data, error: authError } = await supabase.auth.getUser(token);
+      user = data?.user;
+
+      if (authError || !user) {
+        console.error("[list-foundation-models] Auth error:", authError);
+        return new Response(
+          JSON.stringify({ error: "Unauthorized - Please sign out and sign in again", details: authError?.message }),
+          {
+            status: 401,
+            headers: {
+              ...corsHeaders,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+      }
+    } catch (e) {
+      console.error("[list-foundation-models] Exception during auth:", e);
+      return new Response(
+        JSON.stringify({ error: "Authentication failed", details: e instanceof Error ? e.message : "Unknown error" }),
         {
           status: 401,
           headers: {
@@ -120,7 +151,6 @@ Deno.serve(async (req: Request) => {
     const data = await bedrockResponse.json();
     const models: FoundationModel[] = data.modelSummaries || [];
 
-    // Fetch inference profiles
     const profilesEndpoint = `https://bedrock.${awsRegion}.amazonaws.com/inference-profiles`;
     const profilesHeaders = await signRequest({
       method: "GET",
@@ -142,7 +172,6 @@ Deno.serve(async (req: Request) => {
       const profilesData = await profilesResponse.json();
       const profiles: InferenceProfile[] = profilesData.inferenceProfileSummaries || [];
 
-      // Map model ARNs to inference profile IDs, names, and ARNs
       profiles.forEach(profile => {
         profile.models.forEach(model => {
           profileMap.set(model.modelArn, {
@@ -154,7 +183,6 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Add inference profile IDs, names, and ARNs to models
     const modelsWithProfiles = models.map(model => {
       const profile = profileMap.get(model.modelArn);
       return {
