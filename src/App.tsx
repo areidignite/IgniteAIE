@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { FileText, LogOut, Info, Trash2 } from 'lucide-react';
+import { Info, Trash2 } from 'lucide-react';
 import { supabase, type Document } from './lib/supabase';
 import { AuthForm } from './components/AuthForm';
-import { UpdatePasswordForm } from './components/UpdatePasswordForm';
 import { PromptArea } from './components/PromptArea';
 import { DocumentViewer } from './components/DocumentViewer';
 import { DocumentList } from './components/DocumentList';
@@ -10,7 +9,6 @@ import { ErrorDialog } from './components/ErrorDialog';
 import { WorkspaceEditor } from './components/WorkspaceEditor';
 import { ModelSelector } from './components/ModelSelector';
 import { KnowledgeBaseSelector } from './components/KnowledgeBaseSelector';
-import { ResizablePanel } from './components/ResizablePanel';
 import { ResizablePanelHorizontal } from './components/ResizablePanelHorizontal';
 import { S3BucketBrowser } from './components/S3BucketBrowser';
 
@@ -215,7 +213,7 @@ function App() {
       setModels(sortedModels);
 
       if (sortedModels.length > 0 && selectedModel === 'anthropic.claude-3-5-sonnet-20240620-v1:0') {
-        const defaultModel = sortedModels.find(m =>
+        const defaultModel = sortedModels.find((m: FoundationModel) =>
           m.modelId === 'anthropic.claude-3-5-sonnet-20240620-v1:0' ||
           m.modelArn.includes('anthropic.claude-3-5-sonnet-20240620-v1:0')
         );
