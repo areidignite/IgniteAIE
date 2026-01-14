@@ -1,11 +1,19 @@
 import { useState, useEffect } from 'react';
-import { File, FolderOpen, Loader2, CheckSquare, Square, Copy } from 'lucide-react';
+import { File, FolderOpen, Loader2, CheckSquare, Square, Copy, ChevronRight, Home } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface S3Object {
   Key: string;
   Size: number;
   LastModified: string;
+}
+
+interface FolderItem {
+  name: string;
+  path: string;
+  isFolder: boolean;
+  size?: number;
+  lastModified?: string;
 }
 
 interface RepositoryBrowserProps {
@@ -15,10 +23,11 @@ interface RepositoryBrowserProps {
 }
 
 export function RepositoryBrowser({ onError, selectedKnowledgeBase, onClose }: RepositoryBrowserProps) {
-  const [files, setFiles] = useState<S3Object[]>([]);
+  const [allFiles, setAllFiles] = useState<S3Object[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [copying, setCopying] = useState(false);
+  const [currentPath, setCurrentPath] = useState<string>('');
 
   useEffect(() => {
     loadRepositoryFiles();
@@ -49,9 +58,9 @@ export function RepositoryBrowser({ onError, selectedKnowledgeBase, onClose }: R
 
       const data = await response.json();
       const fileObjects = (data.Contents || []).filter((obj: S3Object) =>
-        !obj.Key.endsWith('/') && obj.Size > 0
+        obj.Size > 0
       );
-      setFiles(fileObjects);
+      setAllFiles(fileObjects);
     } catch (err) {
       console.error('Error loading repository files:', err);
       onError(err instanceof Error ? err.message : 'Failed to load repository files');
@@ -59,6 +68,47 @@ export function RepositoryBrowser({ onError, selectedKnowledgeBase, onClose }: R
       setLoading(false);
     }
   };
+
+  const getCurrentFolderItems = (): FolderItem[] => {
+    const items = new Map<string, FolderItem>();
+    const prefix = currentPath ? `${currentPath}/` : '';
+
+    allFiles.forEach(file => {
+      if (!file.Key.startsWith(prefix)) return;
+
+      const relativePath = file.Key.substring(prefix.length);
+      const slashIndex = relativePath.indexOf('/');
+
+      if (slashIndex === -1) {
+        items.set(file.Key, {
+          name: relativePath,
+          path: file.Key,
+          isFolder: false,
+          size: file.Size,
+          lastModified: file.LastModified,
+        });
+      } else {
+        const folderName = relativePath.substring(0, slashIndex);
+        const folderPath = prefix + folderName;
+        if (!items.has(folderPath)) {
+          items.set(folderPath, {
+            name: folderName,
+            path: folderPath,
+            isFolder: true,
+          });
+        }
+      }
+    });
+
+    return Array.from(items.values()).sort((a, b) => {
+      if (a.isFolder && !b.isFolder) return -1;
+      if (!a.isFolder && b.isFolder) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  };
+
+  const items = getCurrentFolderItems();
+  const visibleFiles = items.filter(item => !item.isFolder);
 
   const toggleFileSelection = (fileKey: string) => {
     setSelectedFiles(prev => {
@@ -73,11 +123,33 @@ export function RepositoryBrowser({ onError, selectedKnowledgeBase, onClose }: R
   };
 
   const toggleSelectAll = () => {
-    if (selectedFiles.size === files.length) {
-      setSelectedFiles(new Set());
+    const filePaths = visibleFiles.map(f => f.path);
+    if (filePaths.every(path => selectedFiles.has(path))) {
+      const newSet = new Set(selectedFiles);
+      filePaths.forEach(path => newSet.delete(path));
+      setSelectedFiles(newSet);
     } else {
-      setSelectedFiles(new Set(files.map(f => f.Key)));
+      const newSet = new Set(selectedFiles);
+      filePaths.forEach(path => newSet.add(path));
+      setSelectedFiles(newSet);
     }
+  };
+
+  const handleItemClick = (item: FolderItem) => {
+    if (item.isFolder) {
+      setCurrentPath(item.path);
+    } else {
+      toggleFileSelection(item.path);
+    }
+  };
+
+  const navigateToPath = (path: string) => {
+    setCurrentPath(path);
+  };
+
+  const getPathSegments = () => {
+    if (!currentPath) return [];
+    return currentPath.split('/');
   };
 
   const handleCopyFiles = async () => {
@@ -174,64 +246,108 @@ export function RepositoryBrowser({ onError, selectedKnowledgeBase, onClose }: R
               <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400" />
               <span className="ml-3 text-slate-600 dark:text-slate-400">Loading repository files...</span>
             </div>
-          ) : files.length === 0 ? (
+          ) : allFiles.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-slate-400 dark:text-slate-500">
               <FolderOpen className="w-16 h-16 mb-4" />
               <p className="text-lg">No files found in repository</p>
             </div>
           ) : (
             <>
+              <div className="mb-4 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 overflow-x-auto pb-2">
+                <button
+                  onClick={() => navigateToPath('')}
+                  className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex-shrink-0"
+                  title="Go to root"
+                >
+                  <Home className="w-4 h-4" />
+                </button>
+                {getPathSegments().map((segment, index) => {
+                  const path = getPathSegments().slice(0, index + 1).join('/');
+                  return (
+                    <div key={path} className="flex items-center gap-1 flex-shrink-0">
+                      <ChevronRight className="w-4 h-4 text-slate-400" />
+                      <button
+                        onClick={() => navigateToPath(path)}
+                        className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium"
+                      >
+                        {segment}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
               <div className="mb-4 flex items-center justify-between">
                 <button
                   onClick={toggleSelectAll}
                   className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
                 >
-                  {selectedFiles.size === files.length ? (
+                  {visibleFiles.length > 0 && visibleFiles.every(f => selectedFiles.has(f.path)) ? (
                     <>
                       <CheckSquare className="w-4 h-4" />
-                      Deselect All
+                      Deselect All Files
                     </>
                   ) : (
                     <>
                       <Square className="w-4 h-4" />
-                      Select All
+                      Select All Files
                     </>
                   )}
                 </button>
                 <span className="text-sm text-slate-600 dark:text-slate-400">
-                  {selectedFiles.size} of {files.length} selected
+                  {selectedFiles.size} file{selectedFiles.size !== 1 ? 's' : ''} selected
                 </span>
               </div>
 
               <div className="space-y-2">
-                {files.map((file) => (
-                  <div
-                    key={file.Key}
-                    onClick={() => toggleFileSelection(file.Key)}
-                    className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                      selectedFiles.has(file.Key)
-                        ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20'
-                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                    }`}
-                  >
-                    <div className="flex-shrink-0">
-                      {selectedFiles.has(file.Key) ? (
-                        <CheckSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                      ) : (
-                        <Square className="w-5 h-5 text-slate-400 dark:text-slate-500" />
-                      )}
-                    </div>
-                    <File className="w-5 h-5 text-slate-400 dark:text-slate-500 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
-                        {file.Key.split('/').pop()}
-                      </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {formatFileSize(file.Size)} • {formatDate(file.LastModified)}
-                      </p>
-                    </div>
+                {items.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-slate-400 dark:text-slate-500">
+                    <FolderOpen className="w-12 h-12 mb-3" />
+                    <p>Empty folder</p>
                   </div>
-                ))}
+                ) : (
+                  items.map((item) => (
+                    <div
+                      key={item.path}
+                      onClick={() => handleItemClick(item)}
+                      className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                        !item.isFolder && selectedFiles.has(item.path)
+                          ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                      }`}
+                    >
+                      {!item.isFolder && (
+                        <div className="flex-shrink-0">
+                          {selectedFiles.has(item.path) ? (
+                            <CheckSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                          ) : (
+                            <Square className="w-5 h-5 text-slate-400 dark:text-slate-500" />
+                          )}
+                        </div>
+                      )}
+                      {item.isFolder ? (
+                        <FolderOpen className="w-5 h-5 text-amber-500 dark:text-amber-400 flex-shrink-0" />
+                      ) : (
+                        <File className="w-5 h-5 text-slate-400 dark:text-slate-500 flex-shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
+                          {item.name}
+                        </p>
+                        {!item.isFolder && item.size !== undefined && item.lastModified && (
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            {formatFileSize(item.size)} • {formatDate(item.lastModified)}
+                          </p>
+                        )}
+                        {item.isFolder && (
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            Folder
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </>
           )}
