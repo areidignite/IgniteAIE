@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { File, FolderOpen, Loader2, CheckSquare, Square, Copy, ChevronRight, Home } from 'lucide-react';
+import { File, FolderOpen, Loader2, CheckSquare, Square, Copy, ChevronRight, Home, Eye, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface S3Object {
@@ -28,6 +28,8 @@ export function RepositoryBrowser({ onError, selectedKnowledgeBase, onClose }: R
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [copying, setCopying] = useState(false);
   const [currentPath, setCurrentPath] = useState<string>('');
+  const [viewingFile, setViewingFile] = useState<{ path: string; name: string; content: string } | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
 
   useEffect(() => {
     loadRepositoryFiles();
@@ -262,6 +264,52 @@ export function RepositoryBrowser({ onError, selectedKnowledgeBase, onClose }: R
     return new Date(dateString).toLocaleString();
   };
 
+  const handleViewFile = async (filePath: string, fileName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setLoadingPreview(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-presigned-url`;
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          key: filePath,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to get file URL');
+      }
+
+      const { url } = await response.json();
+
+      const fileResponse = await fetch(url);
+      if (!fileResponse.ok) {
+        throw new Error('Failed to fetch file content');
+      }
+
+      const content = await fileResponse.text();
+      setViewingFile({ path: filePath, name: fileName, content });
+    } catch (err) {
+      console.error('Error viewing file:', err);
+      onError(err instanceof Error ? err.message : 'Failed to view file');
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
@@ -402,6 +450,16 @@ export function RepositoryBrowser({ onError, selectedKnowledgeBase, onClose }: R
                             </p>
                           )}
                         </div>
+                        {!item.isFolder && (
+                          <button
+                            onClick={(e) => handleViewFile(item.path, item.name, e)}
+                            disabled={loadingPreview}
+                            className="flex-shrink-0 p-2 text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="View file"
+                          >
+                            <Eye className="w-5 h-5" />
+                          </button>
+                        )}
                       </div>
                     );
                   })
@@ -437,6 +495,46 @@ export function RepositoryBrowser({ onError, selectedKnowledgeBase, onClose }: R
           </button>
         </div>
       </div>
+
+      {viewingFile && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+              <div className="flex items-center gap-3 min-w-0">
+                <File className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                <div className="min-w-0">
+                  <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 truncate">
+                    {viewingFile.name}
+                  </h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 truncate">
+                    {viewingFile.path}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewingFile(null)}
+                className="flex-shrink-0 p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                title="Close preview"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-6">
+              <pre className="text-sm text-slate-800 dark:text-slate-200 font-mono whitespace-pre-wrap break-words bg-slate-50 dark:bg-slate-900 p-4 rounded-lg">
+                {viewingFile.content}
+              </pre>
+            </div>
+            <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end">
+              <button
+                onClick={() => setViewingFile(null)}
+                className="px-6 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors font-medium"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
