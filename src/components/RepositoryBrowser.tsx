@@ -110,37 +110,79 @@ export function RepositoryBrowser({ onError, selectedKnowledgeBase, onClose }: R
   const items = getCurrentFolderItems();
   const visibleFiles = items.filter(item => !item.isFolder);
 
-  const toggleFileSelection = (fileKey: string) => {
+  const getFilesInFolder = (folderPath: string): string[] => {
+    const prefix = `${folderPath}/`;
+    return allFiles
+      .filter(file => file.Key.startsWith(prefix))
+      .map(file => file.Key);
+  };
+
+  const isFolderSelected = (folderPath: string): boolean => {
+    const filesInFolder = getFilesInFolder(folderPath);
+    return filesInFolder.length > 0 && filesInFolder.every(file => selectedFiles.has(file));
+  };
+
+  const toggleFileSelection = (itemPath: string, isFolder: boolean) => {
     setSelectedFiles(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(fileKey)) {
-        newSet.delete(fileKey);
+
+      if (isFolder) {
+        const filesInFolder = getFilesInFolder(itemPath);
+        const allSelected = filesInFolder.every(file => newSet.has(file));
+
+        if (allSelected) {
+          filesInFolder.forEach(file => newSet.delete(file));
+        } else {
+          filesInFolder.forEach(file => newSet.add(file));
+        }
       } else {
-        newSet.add(fileKey);
+        if (newSet.has(itemPath)) {
+          newSet.delete(itemPath);
+        } else {
+          newSet.add(itemPath);
+        }
       }
+
       return newSet;
     });
   };
 
   const toggleSelectAll = () => {
-    const filePaths = visibleFiles.map(f => f.path);
-    if (filePaths.every(path => selectedFiles.has(path))) {
-      const newSet = new Set(selectedFiles);
-      filePaths.forEach(path => newSet.delete(path));
-      setSelectedFiles(newSet);
+    const allItemPaths: string[] = [];
+    items.forEach(item => {
+      if (item.isFolder) {
+        allItemPaths.push(...getFilesInFolder(item.path));
+      } else {
+        allItemPaths.push(item.path);
+      }
+    });
+
+    const allSelected = allItemPaths.every(path => selectedFiles.has(path));
+    const newSet = new Set(selectedFiles);
+
+    if (allSelected) {
+      allItemPaths.forEach(path => newSet.delete(path));
     } else {
-      const newSet = new Set(selectedFiles);
-      filePaths.forEach(path => newSet.add(path));
-      setSelectedFiles(newSet);
+      allItemPaths.forEach(path => newSet.add(path));
+    }
+
+    setSelectedFiles(newSet);
+  };
+
+  const handleItemClick = (item: FolderItem, e: React.MouseEvent) => {
+    if (e.ctrlKey || e.metaKey || e.shiftKey) {
+      e.preventDefault();
+      toggleFileSelection(item.path, item.isFolder);
+    } else if (item.isFolder) {
+      setCurrentPath(item.path);
+    } else {
+      toggleFileSelection(item.path, item.isFolder);
     }
   };
 
-  const handleItemClick = (item: FolderItem) => {
-    if (item.isFolder) {
-      setCurrentPath(item.path);
-    } else {
-      toggleFileSelection(item.path);
-    }
+  const handleCheckboxClick = (item: FolderItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleFileSelection(item.path, item.isFolder);
   };
 
   const navigateToPath = (path: string) => {
@@ -227,7 +269,7 @@ export function RepositoryBrowser({ onError, selectedKnowledgeBase, onClose }: R
           <div>
             <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Copy from Repository</h2>
             <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-              Select files to copy to your knowledge base
+              Select files or folders to copy to your knowledge base
             </p>
           </div>
           <button
@@ -282,15 +324,25 @@ export function RepositoryBrowser({ onError, selectedKnowledgeBase, onClose }: R
                   onClick={toggleSelectAll}
                   className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
                 >
-                  {visibleFiles.length > 0 && visibleFiles.every(f => selectedFiles.has(f.path)) ? (
+                  {items.length > 0 && (() => {
+                    const allItemFiles: string[] = [];
+                    items.forEach(item => {
+                      if (item.isFolder) {
+                        allItemFiles.push(...getFilesInFolder(item.path));
+                      } else {
+                        allItemFiles.push(item.path);
+                      }
+                    });
+                    return allItemFiles.every(path => selectedFiles.has(path));
+                  })() ? (
                     <>
                       <CheckSquare className="w-4 h-4" />
-                      Deselect All Files
+                      Deselect All
                     </>
                   ) : (
                     <>
                       <Square className="w-4 h-4" />
-                      Select All Files
+                      Select All
                     </>
                   )}
                 </button>
@@ -306,47 +358,53 @@ export function RepositoryBrowser({ onError, selectedKnowledgeBase, onClose }: R
                     <p>Empty folder</p>
                   </div>
                 ) : (
-                  items.map((item) => (
-                    <div
-                      key={item.path}
-                      onClick={() => handleItemClick(item)}
-                      className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                        !item.isFolder && selectedFiles.has(item.path)
-                          ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20'
-                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                      }`}
-                    >
-                      {!item.isFolder && (
-                        <div className="flex-shrink-0">
-                          {selectedFiles.has(item.path) ? (
+                  items.map((item) => {
+                    const isSelected = item.isFolder ? isFolderSelected(item.path) : selectedFiles.has(item.path);
+                    const fileCount = item.isFolder ? getFilesInFolder(item.path).length : 0;
+
+                    return (
+                      <div
+                        key={item.path}
+                        onClick={(e) => handleItemClick(item, e)}
+                        className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                          isSelected
+                            ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                            : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                        }`}
+                      >
+                        <div
+                          className="flex-shrink-0"
+                          onClick={(e) => handleCheckboxClick(item, e)}
+                        >
+                          {isSelected ? (
                             <CheckSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                           ) : (
                             <Square className="w-5 h-5 text-slate-400 dark:text-slate-500" />
                           )}
                         </div>
-                      )}
-                      {item.isFolder ? (
-                        <FolderOpen className="w-5 h-5 text-amber-500 dark:text-amber-400 flex-shrink-0" />
-                      ) : (
-                        <File className="w-5 h-5 text-slate-400 dark:text-slate-500 flex-shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
-                          {item.name}
-                        </p>
-                        {!item.isFolder && item.size !== undefined && item.lastModified && (
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            {formatFileSize(item.size)} • {formatDate(item.lastModified)}
-                          </p>
+                        {item.isFolder ? (
+                          <FolderOpen className="w-5 h-5 text-amber-500 dark:text-amber-400 flex-shrink-0" />
+                        ) : (
+                          <File className="w-5 h-5 text-slate-400 dark:text-slate-500 flex-shrink-0" />
                         )}
-                        {item.isFolder && (
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            Folder
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
+                            {item.name}
                           </p>
-                        )}
+                          {!item.isFolder && item.size !== undefined && item.lastModified && (
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              {formatFileSize(item.size)} • {formatDate(item.lastModified)}
+                            </p>
+                          )}
+                          {item.isFolder && (
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              Folder • {fileCount} file{fileCount !== 1 ? 's' : ''}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </>
