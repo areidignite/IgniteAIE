@@ -244,8 +244,13 @@ Deno.serve(async (req: Request) => {
         const fileName = fileKey.split('/').pop();
         const destinationKey = destinationPrefix + fileName;
 
-        const copySource = `/${repositoryBucket}/${fileKey}`;
-        const copyUrl = `https://${destinationBucket}.s3.${awsRegion}.amazonaws.com/${destinationKey}`;
+        // URL encode the copy source properly
+        const encodedFileKey = encodeURIComponent(fileKey).replace(/%2F/g, '/');
+        const copySource = `/${repositoryBucket}/${encodedFileKey}`;
+
+        // URL encode the destination key
+        const encodedDestinationKey = encodeURIComponent(destinationKey).replace(/%2F/g, '/');
+        const copyUrl = `https://${destinationBucket}.s3.${awsRegion}.amazonaws.com/${encodedDestinationKey}`;
 
         const copyHeaders = await signRequest({
           method: "PUT",
@@ -269,11 +274,11 @@ Deno.serve(async (req: Request) => {
 
         if (!copyResponse.ok) {
           const errorText = await copyResponse.text();
-          console.error("Failed to copy file:", fileKey, errorText);
+          console.error("Failed to copy file:", fileKey, "Status:", copyResponse.status, "Error:", errorText);
           copyResults.push({
             fileKey,
             success: false,
-            error: errorText,
+            error: `${copyResponse.status}: ${errorText}`,
           });
         } else {
           console.log("Successfully copied:", fileKey);

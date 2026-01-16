@@ -237,7 +237,11 @@ export function RepositoryBrowser({ onError, selectedKnowledgeBase, onClose }: R
       const result = await response.json();
 
       if (result.failureCount > 0) {
-        onError(`Copied ${result.successCount} file(s) successfully, ${result.failureCount} failed`);
+        // Show detailed error information
+        const failedFiles = result.results.filter((r: any) => !r.success);
+        const errorDetails = failedFiles.map((f: any) => `${f.fileKey}: ${f.error}`).join('\n');
+        console.error('Failed to copy files:', errorDetails);
+        onError(`Copied ${result.successCount} file(s) successfully, ${result.failureCount} failed. Check console for details.`);
       } else {
         alert(`Successfully copied ${result.successCount} file(s) to the knowledge base!`);
       }
