@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FileText, LogOut, Info, Trash2, Sun, Moon, Flame } from 'lucide-react';
+import { FileText, LogOut, Info, Trash2, Sun, Moon, Sparkles } from 'lucide-react';
 import { supabase, type Document } from './lib/supabase';
 import { AuthForm } from './components/AuthForm';
 import { UpdatePasswordForm } from './components/UpdatePasswordForm';
@@ -584,8 +584,8 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
         <div className="mx-auto px-6 py-4 flex items-center gap-6">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg">
-                <Flame className="h-8 w-8 text-white" />
+              <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg">
+                <Sparkles className="h-8 w-8 text-white" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">IgniteAIE Document Builder</h1>
