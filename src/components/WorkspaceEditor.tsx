@@ -71,8 +71,8 @@ export function WorkspaceEditor({ content, onChange, onSave, onClear, isSaving }
 
   return (
     <div className="flex flex-col">
-      <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-200">
-        <div className="flex items-center gap-2 text-slate-700">
+      <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-200 dark:border-slate-700">
+        <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
           <FileEdit className="w-5 h-5" />
           <span className="font-medium">Create Document</span>
         </div>
@@ -80,14 +80,14 @@ export function WorkspaceEditor({ content, onChange, onSave, onClear, isSaving }
           <button
             onClick={handleDownload}
             disabled={!localContent.trim()}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-green-600 hover:bg-green-700 disabled:bg-green-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 disabled:bg-green-300 dark:disabled:bg-green-800 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
           >
             <Download className="w-4 h-4" />
             Download
           </button>
           <button
             onClick={onClear}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg transition-colors"
           >
             <Trash2 className="w-4 h-4" />
             Clear
@@ -95,7 +95,7 @@ export function WorkspaceEditor({ content, onChange, onSave, onClear, isSaving }
           <button
             onClick={onSave}
             disabled={isSaving}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:bg-blue-400 dark:disabled:bg-blue-800 text-white rounded-lg transition-colors"
           >
             <Save className="w-4 h-4" />
             {isSaving ? 'Saving...' : 'Save'}
@@ -111,12 +111,12 @@ export function WorkspaceEditor({ content, onChange, onSave, onClear, isSaving }
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           placeholder="Start typing or drag and drop content from your documents or generated answers..."
-          className="w-full p-4 bg-slate-50 border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800 leading-relaxed font-mono text-sm overflow-hidden"
+          className="w-full p-4 bg-slate-50 border border-slate-200 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800 leading-relaxed font-mono text-sm overflow-hidden"
           style={{ minHeight: '600px' }}
         />
         {localContent.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="text-center text-slate-400 space-y-2">
+            <div className="text-center text-slate-400 dark:text-slate-500 space-y-2">
               <FileEdit className="w-12 h-12 mx-auto opacity-30" />
               <p className="text-sm">Drag & drop documents here</p>
               <p className="text-xs">Or start typing to build your document</p>
@@ -125,7 +125,7 @@ export function WorkspaceEditor({ content, onChange, onSave, onClear, isSaving }
         )}
       </div>
 
-      <div className="mt-3 text-xs text-slate-500 text-right">
+      <div className="mt-3 text-xs text-slate-500 dark:text-slate-400 text-right">
         {localContent.length} characters
       </div>
     </div>

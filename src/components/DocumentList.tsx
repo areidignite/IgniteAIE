@@ -34,7 +34,7 @@ export function DocumentList({ documents, selectedId, onSelect, onDelete }: Docu
 
   if (documents.length === 0) {
     return (
-      <div className="text-center py-8 text-slate-400">
+      <div className="text-center py-8 text-slate-400 dark:text-slate-500">
         <FileText className="w-12 h-12 mx-auto mb-3" />
         <p>No documents yet</p>
         <p className="text-sm mt-1">Create your first document above</p>
@@ -52,31 +52,31 @@ export function DocumentList({ documents, selectedId, onSelect, onDelete }: Docu
           onDragEnd={handleDragEnd}
           className={`group p-3 rounded-lg border-2 cursor-pointer transition-all ${
             selectedId === doc.id
-              ? 'border-blue-500 bg-blue-50'
-              : 'border-slate-200 hover:border-slate-300 bg-white'
+              ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/30'
+              : 'border-slate-200 hover:border-slate-300 bg-white dark:border-slate-700 dark:hover:border-slate-600 dark:bg-slate-800'
           } ${draggingId === doc.id ? 'opacity-50' : ''}`}
           onClick={() => onSelect(doc)}
         >
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <FileText className="w-4 h-4 text-slate-500 flex-shrink-0" />
-                <h3 className="font-medium text-slate-800 truncate">{doc.title}</h3>
+                <FileText className="w-4 h-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
+                <h3 className="font-medium text-slate-800 dark:text-slate-100 truncate">{doc.title}</h3>
               </div>
-              <p className="text-sm text-slate-500 line-clamp-2">{doc.prompt}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2">{doc.prompt}</p>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <p className="text-xs text-slate-400">{formatDate(doc.created_at)}</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500">{formatDate(doc.created_at)}</p>
                 {doc.used_knowledge_base !== undefined && (
                   <span className={`text-xs px-1.5 py-0.5 rounded ${
                     doc.used_knowledge_base
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-slate-200 text-slate-600'
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                      : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
                   }`}>
                     {doc.used_knowledge_base ? 'RAG' : 'Direct'}
                   </span>
                 )}
                 {doc.model_name && (
-                  <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 max-w-[120px] truncate" title={doc.model_name}>
+                  <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 max-w-[120px] truncate" title={doc.model_name}>
                     {doc.model_name}
                   </span>
                 )}
@@ -87,7 +87,7 @@ export function DocumentList({ documents, selectedId, onSelect, onDelete }: Docu
                 e.stopPropagation();
                 onDelete(doc.id);
               }}
-              className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 rounded transition-all text-red-600"
+              className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-all text-red-600 dark:text-red-400"
             >
               <Trash2 className="w-4 h-4" />
             </button>
