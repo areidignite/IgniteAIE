@@ -585,7 +585,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-3">
               <img
-                src="/igniteicon.png"
+                src="/igniteicon copy copy.png"
                 alt="IgniteIT Logo"
                 className="h-12 w-12 object-contain"
               />
