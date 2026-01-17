@@ -582,32 +582,34 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="mx-auto px-6 py-4 flex items-center gap-6">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-3">
+          <div className="space-y-3">
+            <div className="flex items-center gap-4">
               <img
                 src="/igniteicon copy copy copy.png"
                 alt="IgniteIT Logo"
-                className="h-12 w-12 object-contain"
+                className="h-16 w-16 object-contain"
               />
               <div>
-                <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">IgniteAIE Document Builder</h1>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Ignite AI Engine powered document generation</p>
+                <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">IgniteAIE Document Builder</h1>
+                <p className="text-base text-slate-500 dark:text-slate-400">Ignite AI Engine powered document generation</p>
               </div>
             </div>
-            <button
-              onClick={() => setShowInfoDialog(true)}
-              className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
-              title="How it works"
-            >
-              <Info className="w-5 h-5" />
-            </button>
-            <button
-              onClick={toggleTheme}
-              className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
-              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
+            <div className="flex items-center gap-2 ml-1">
+              <button
+                onClick={() => setShowInfoDialog(true)}
+                className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                title="How it works"
+              >
+                <Info className="w-5 h-5" />
+              </button>
+              <button
+                onClick={toggleTheme}
+                className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </button>
+            </div>
           </div>
           <div className="flex-1 space-y-3">
             <div className="flex items-center gap-3">
