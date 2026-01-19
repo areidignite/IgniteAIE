@@ -244,12 +244,10 @@ Deno.serve(async (req: Request) => {
         const fileName = fileKey.split('/').pop();
         const destinationKey = destinationPrefix + fileName;
 
-        // URL encode the copy source properly
-        const encodedFileKey = encodeURIComponent(fileKey).replace(/%2F/g, '/');
-        const copySource = `/${repositoryBucket}/${encodedFileKey}`;
+        const copySourceCanonical = `/${repositoryBucket}/${fileKey}`;
+        const copySourceEncoded = `/${repositoryBucket}/${fileKey.split('/').map(encodeURIComponent).join('/')}`;
 
-        // URL encode the destination key
-        const encodedDestinationKey = encodeURIComponent(destinationKey).replace(/%2F/g, '/');
+        const encodedDestinationKey = destinationKey.split('/').map(encodeURIComponent).join('/');
         const copyUrl = `https://${destinationBucket}.s3.${awsRegion}.amazonaws.com/${encodedDestinationKey}`;
 
         const copyHeaders = await signRequest({
@@ -260,12 +258,15 @@ Deno.serve(async (req: Request) => {
           service: "s3",
           accessKeyId: awsAccessKeyId,
           secretAccessKey: awsSecretAccessKey,
+          canonicalHeaders: {
+            "x-amz-copy-source": copySourceCanonical,
+          },
           extraHeaders: {
-            "x-amz-copy-source": copySource,
+            "x-amz-copy-source": copySourceEncoded,
           },
         });
 
-        console.log("Copying", copySource, "to", copyUrl);
+        console.log("Copying", copySourceEncoded, "to", copyUrl);
 
         const copyResponse = await fetch(copyUrl, {
           method: "PUT",

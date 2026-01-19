@@ -7,8 +7,9 @@ export async function signRequest(params: {
   accessKeyId: string;
   secretAccessKey: string;
   extraHeaders?: Record<string, string>;
+  canonicalHeaders?: Record<string, string>;
 }): Promise<Record<string, string>> {
-  const { method, url, body, region, service, accessKeyId, secretAccessKey, extraHeaders = {} } = params;
+  const { method, url, body, region, service, accessKeyId, secretAccessKey, extraHeaders = {}, canonicalHeaders: canonicalHeadersOverride } = params;
 
   const urlObj = new URL(url);
   const host = urlObj.hostname;
@@ -25,11 +26,12 @@ export async function signRequest(params: {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 
-  const headerKeys = ["host", "x-amz-date", ...Object.keys(extraHeaders).sort()];
+  const headersForSignature = canonicalHeadersOverride || extraHeaders;
+  const headerKeys = ["host", "x-amz-date", ...Object.keys(headersForSignature).sort()];
   const canonicalHeadersList = [
     `host:${host}`,
     `x-amz-date:${amzDate}`,
-    ...Object.entries(extraHeaders).sort().map(([k, v]) => `${k.toLowerCase()}:${v}`)
+    ...Object.entries(headersForSignature).sort().map(([k, v]) => `${k.toLowerCase()}:${v}`)
   ];
   const canonicalHeaders = canonicalHeadersList.join("\n") + "\n";
   const signedHeaders = headerKeys.join(";");
