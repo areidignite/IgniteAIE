@@ -239,14 +239,26 @@ Deno.serve(async (req: Request) => {
 
     const copyResults = [];
 
+    // Helper function to encode S3 keys for copy-source header
+    const encodeS3Key = (key: string): string => {
+      // Split by '/' to encode each segment separately
+      return key.split('/').map(segment => {
+        // Encode each segment, then replace encoded forward slashes back
+        // This preserves the path structure while encoding special characters
+        return encodeURIComponent(segment);
+      }).join('/');
+    };
+
     for (const fileKey of fileKeys) {
       try {
         const fileName = fileKey.split('/').pop();
         const destinationKey = destinationPrefix + fileName;
 
-        const copySource = `/${repositoryBucket}/${fileKey.split('/').map(part => encodeURIComponent(part).replace(/%2F/g, '/')).join('/')}`;
+        // Properly encode the source path - bucket and key both need encoding
+        const encodedSourceKey = encodeS3Key(fileKey);
+        const copySource = `/${repositoryBucket}/${encodedSourceKey}`;
 
-        const encodedDestinationKey = destinationKey.split('/').map(encodeURIComponent).join('/');
+        const encodedDestinationKey = encodeS3Key(destinationKey);
         const copyUrl = `https://${destinationBucket}.s3.${awsRegion}.amazonaws.com/${encodedDestinationKey}`;
 
         const copyHeaders = await signRequest({
