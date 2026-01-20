@@ -239,13 +239,18 @@ Deno.serve(async (req: Request) => {
 
     const copyResults = [];
 
-    // Helper function to encode S3 keys for copy-source header
+    // Helper function to encode S3 keys using RFC 3986 encoding
+    // AWS S3 expects specific characters to remain unencoded
     const encodeS3Key = (key: string): string => {
-      // Split by '/' to encode each segment separately
       return key.split('/').map(segment => {
-        // Encode each segment, then replace encoded forward slashes back
-        // This preserves the path structure while encoding special characters
-        return encodeURIComponent(segment);
+        // Use encodeURIComponent first, then unescape the characters that S3 doesn't encode
+        // According to AWS documentation, these characters should NOT be encoded: - _ . ~ ! * ' ( )
+        return encodeURIComponent(segment)
+          .replace(/%21/g, '!')
+          .replace(/%27/g, "'")
+          .replace(/%28/g, '(')
+          .replace(/%29/g, ')')
+          .replace(/%2A/g, '*');
       }).join('/');
     };
 
