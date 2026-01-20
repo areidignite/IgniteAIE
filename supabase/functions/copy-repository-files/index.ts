@@ -254,11 +254,14 @@ Deno.serve(async (req: Request) => {
         const fileName = fileKey.split('/').pop();
         const destinationKey = destinationPrefix + fileName;
 
-        // Use AWS SDK to copy - it handles all encoding correctly
+        // URL-encode the CopySource to handle special characters
+        const encodedFileKey = fileKey.split('/').map(encodeURIComponent).join('/');
+        const encodedCopySource = `${repositoryBucket}/${encodedFileKey}`;
+
         const copyCommand = new CopyObjectCommand({
           Bucket: destinationBucket,
           Key: destinationKey,
-          CopySource: `${repositoryBucket}/${fileKey}`,
+          CopySource: encodedCopySource,
         });
 
         console.log("Copying", fileKey, "from", repositoryBucket, "to", destinationBucket, "as", destinationKey);
