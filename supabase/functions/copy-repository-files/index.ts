@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
+import { S3Client, CopyObjectCommand } from "npm:@aws-sdk/client-s3@3.478.0";
 import { signRequest } from "./aws-signer.ts";
 
 const corsHeaders = {
@@ -237,71 +238,39 @@ Deno.serve(async (req: Request) => {
 
     console.log("Copying files from", repositoryBucket, "to", destinationBucket, "prefix:", destinationPrefix);
 
-    const copyResults = [];
+    // Initialize S3 client
+    const s3Client = new S3Client({
+      region: awsRegion,
+      credentials: {
+        accessKeyId: awsAccessKeyId,
+        secretAccessKey: awsSecretAccessKey,
+      },
+    });
 
-    // Helper function to encode S3 keys using RFC 3986 encoding
-    // AWS S3 expects specific characters to remain unencoded
-    const encodeS3Key = (key: string): string => {
-      return key.split('/').map(segment => {
-        // Use encodeURIComponent first, then unescape the characters that S3 doesn't encode
-        // According to AWS documentation, these characters should NOT be encoded: - _ . ~ ! * ' ( )
-        return encodeURIComponent(segment)
-          .replace(/%21/g, '!')
-          .replace(/%27/g, "'")
-          .replace(/%28/g, '(')
-          .replace(/%29/g, ')')
-          .replace(/%2A/g, '*');
-      }).join('/');
-    };
+    const copyResults = [];
 
     for (const fileKey of fileKeys) {
       try {
         const fileName = fileKey.split('/').pop();
         const destinationKey = destinationPrefix + fileName;
 
-        // Properly encode the source path - bucket and key both need encoding
-        const encodedSourceKey = encodeS3Key(fileKey);
-        const copySource = `/${repositoryBucket}/${encodedSourceKey}`;
-
-        const encodedDestinationKey = encodeS3Key(destinationKey);
-        const copyUrl = `https://${destinationBucket}.s3.${awsRegion}.amazonaws.com/${encodedDestinationKey}`;
-
-        const copyHeaders = await signRequest({
-          method: "PUT",
-          url: copyUrl,
-          body: "",
-          region: awsRegion,
-          service: "s3",
-          accessKeyId: awsAccessKeyId,
-          secretAccessKey: awsSecretAccessKey,
-          extraHeaders: {
-            "x-amz-copy-source": copySource,
-          },
+        // Use AWS SDK to copy - it handles all encoding correctly
+        const copyCommand = new CopyObjectCommand({
+          Bucket: destinationBucket,
+          Key: destinationKey,
+          CopySource: `${repositoryBucket}/${fileKey}`,
         });
 
-        console.log("Copying", copySource, "to", copyUrl);
+        console.log("Copying", fileKey, "from", repositoryBucket, "to", destinationBucket, "as", destinationKey);
 
-        const copyResponse = await fetch(copyUrl, {
-          method: "PUT",
-          headers: copyHeaders,
+        await s3Client.send(copyCommand);
+
+        console.log("Successfully copied:", fileKey);
+        copyResults.push({
+          fileKey,
+          success: true,
+          destinationKey,
         });
-
-        if (!copyResponse.ok) {
-          const errorText = await copyResponse.text();
-          console.error("Failed to copy file:", fileKey, "Status:", copyResponse.status, "Error:", errorText);
-          copyResults.push({
-            fileKey,
-            success: false,
-            error: `${copyResponse.status}: ${errorText}`,
-          });
-        } else {
-          console.log("Successfully copied:", fileKey);
-          copyResults.push({
-            fileKey,
-            success: true,
-            destinationKey,
-          });
-        }
       } catch (error) {
         console.error("Error copying file:", fileKey, error);
         copyResults.push({
