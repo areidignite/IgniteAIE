@@ -244,8 +244,7 @@ Deno.serve(async (req: Request) => {
         const fileName = fileKey.split('/').pop();
         const destinationKey = destinationPrefix + fileName;
 
-        const copySourceCanonical = `/${repositoryBucket}/${fileKey}`;
-        const copySourceEncoded = `/${repositoryBucket}/${fileKey.split('/').map(encodeURIComponent).join('/')}`;
+        const copySource = `/${repositoryBucket}/${fileKey.split('/').map(part => encodeURIComponent(part).replace(/%2F/g, '/')).join('/')}`;
 
         const encodedDestinationKey = destinationKey.split('/').map(encodeURIComponent).join('/');
         const copyUrl = `https://${destinationBucket}.s3.${awsRegion}.amazonaws.com/${encodedDestinationKey}`;
@@ -258,11 +257,8 @@ Deno.serve(async (req: Request) => {
           service: "s3",
           accessKeyId: awsAccessKeyId,
           secretAccessKey: awsSecretAccessKey,
-          canonicalHeaders: {
-            "x-amz-copy-source": copySourceCanonical,
-          },
           extraHeaders: {
-            "x-amz-copy-source": copySourceEncoded,
+            "x-amz-copy-source": copySource,
           },
         });
 
