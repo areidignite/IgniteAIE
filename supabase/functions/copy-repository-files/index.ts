@@ -262,7 +262,7 @@ Deno.serve(async (req: Request) => {
           },
         });
 
-        console.log("Copying", copySourceEncoded, "to", copyUrl);
+        console.log("Copying", copySource, "to", copyUrl);
 
         const copyResponse = await fetch(copyUrl, {
           method: "PUT",
