@@ -26,10 +26,6 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
@@ -44,16 +40,22 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: { Authorization: authHeader }
+      }
+    });
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
       console.error("Auth error:", authError);
       return new Response(
         JSON.stringify({
-          code: 401,
-          message: "Invalid JWT",
-          details: authError?.message || "User not authenticated"
+          error: "Unauthorized",
+          message: authError?.message || "User not authenticated"
         }),
         {
           status: 401,
