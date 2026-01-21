@@ -428,7 +428,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
     }
   };
 
-  const handlePromptSubmit = async (prompt: string) => {
+  const handlePromptSubmit = async (prompt: string, attachments?: Array<{ name: string; s3Key: string; size: number }>) => {
     if (!user) return;
 
     setGenerating(true);
@@ -453,7 +453,8 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
       console.log('Sending to API:', {
         modelArn: selectedModel,
         inferenceProfileId: selectedModelData?.inferenceProfileId,
-        inferenceProfileArn: selectedModelData?.inferenceProfileArn
+        inferenceProfileArn: selectedModelData?.inferenceProfileArn,
+        attachments
       });
 
       const response = await fetch(
@@ -471,7 +472,8 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
             inferenceProfileArn: selectedModelData?.inferenceProfileArn,
             knowledgeBaseId: selectedKnowledgeBase,
             useKnowledgeBase,
-            generateTitle: true
+            generateTitle: true,
+            attachments
           }),
         }
       );
@@ -675,6 +677,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
                   isImprovingPrompt={improvingPrompt}
                   prompt={prompt}
                   onPromptChange={setPrompt}
+                  selectedKnowledgeBase={selectedKnowledgeBase}
                 />
               </div>
               <div className="p-4">

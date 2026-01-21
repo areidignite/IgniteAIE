@@ -7,6 +7,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+interface AttachedFile {
+  name: string;
+  s3Key: string;
+  size: number;
+}
+
 interface QueryRequest {
   query: string;
   knowledgeBaseId?: string;
@@ -16,6 +22,7 @@ interface QueryRequest {
   useKnowledgeBase?: boolean;
   generateTitle?: boolean;
   systemPrompt?: string;
+  attachments?: AttachedFile[];
 }
 
 interface BedrockResponse {
@@ -154,9 +161,9 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { query, knowledgeBaseId, modelArn, inferenceProfileId, inferenceProfileArn, useKnowledgeBase = true, generateTitle = false, systemPrompt }: QueryRequest = await req.json();
+    const { query, knowledgeBaseId, modelArn, inferenceProfileId, inferenceProfileArn, useKnowledgeBase = true, generateTitle = false, systemPrompt, attachments }: QueryRequest = await req.json();
 
-    console.log('Received request:', { modelArn, inferenceProfileId, inferenceProfileArn, useKnowledgeBase });
+    console.log('Received request:', { modelArn, inferenceProfileId, inferenceProfileArn, useKnowledgeBase, attachments });
 
     if (!query || query.trim().length === 0) {
       return new Response(
@@ -169,6 +176,12 @@ Deno.serve(async (req: Request) => {
           },
         }
       );
+    }
+
+    let enhancedQuery = query;
+    if (attachments && attachments.length > 0) {
+      const filesList = attachments.map(f => `- ${f.name} (${f.s3Key})`).join('\n');
+      enhancedQuery = `${query}\n\n[Context: The user has attached the following files that are already in the knowledge base:\n${filesList}\nPlease reference these files when answering.]`;
     }
 
     const awsAccessKeyId = Deno.env.get("AWS_ACCESS_KEY_ID");
@@ -209,7 +222,7 @@ Deno.serve(async (req: Request) => {
 
       const body = {
         input: {
-          text: query
+          text: enhancedQuery
         },
         retrieveAndGenerateConfiguration: {
           type: "KNOWLEDGE_BASE",
@@ -299,7 +312,7 @@ Deno.serve(async (req: Request) => {
             role: "user",
             content: [
               {
-                text: query
+                text: enhancedQuery
               }
             ]
           }
