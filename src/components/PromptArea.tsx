@@ -9,7 +9,7 @@ interface AttachedFile {
 }
 
 interface PromptAreaProps {
-  onSubmit: (prompt: string, attachments?: AttachedFile[]) => Promise<void>;
+  onSubmit: (prompt: string, attachments?: AttachedFile[], includeCitations?: boolean) => Promise<void>;
   isLoading: boolean;
   onImprovePrompt?: (prompt: string, companyVoice: 'ignite-it' | 'ignite-action') => Promise<string>;
   isImprovingPrompt?: boolean;
@@ -22,12 +22,13 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
   const [companyVoice, setCompanyVoice] = useState<'ignite-it' | 'ignite-action'>('ignite-it');
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [includeCitations, setIncludeCitations] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (prompt.trim() && !isLoading) {
-      await onSubmit(prompt, attachedFiles.length > 0 ? attachedFiles : undefined);
+      await onSubmit(prompt, attachedFiles.length > 0 ? attachedFiles : undefined, includeCitations);
       setAttachedFiles([]);
     }
   };
@@ -198,6 +199,18 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
           )}
         </div>
         <div className="flex items-center gap-2">
+          <label className="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+            <input
+              type="checkbox"
+              checked={includeCitations}
+              onChange={(e) => setIncludeCitations(e.target.checked)}
+              disabled={isLoading || isImprovingPrompt || uploadingFile}
+              className="w-4 h-4 text-blue-600 border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500 focus:ring-2 disabled:cursor-not-allowed"
+            />
+            <span className={`text-sm font-medium ${isLoading || isImprovingPrompt || uploadingFile ? 'text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-300'}`}>
+              Citations
+            </span>
+          </label>
           <input
             ref={fileInputRef}
             type="file"

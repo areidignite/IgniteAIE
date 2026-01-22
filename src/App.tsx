@@ -428,7 +428,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
     }
   };
 
-  const handlePromptSubmit = async (prompt: string, attachments?: Array<{ name: string; s3Key: string; size: number }>) => {
+  const handlePromptSubmit = async (prompt: string, attachments?: Array<{ name: string; s3Key: string; size: number }>, includeCitations?: boolean) => {
     if (!user) return;
 
     setGenerating(true);
@@ -454,7 +454,8 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
         modelArn: selectedModel,
         inferenceProfileId: selectedModelData?.inferenceProfileId,
         inferenceProfileArn: selectedModelData?.inferenceProfileArn,
-        attachments
+        attachments,
+        includeCitations
       });
 
       const response = await fetch(
@@ -473,7 +474,8 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
             knowledgeBaseId: selectedKnowledgeBase,
             useKnowledgeBase,
             generateTitle: true,
-            attachments
+            attachments,
+            includeCitations
           }),
         }
       );

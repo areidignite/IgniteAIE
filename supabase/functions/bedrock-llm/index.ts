@@ -23,6 +23,7 @@ interface QueryRequest {
   generateTitle?: boolean;
   systemPrompt?: string;
   attachments?: AttachedFile[];
+  includeCitations?: boolean;
 }
 
 interface BedrockResponse {
@@ -161,9 +162,9 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { query, knowledgeBaseId, modelArn, inferenceProfileId, inferenceProfileArn, useKnowledgeBase = true, generateTitle = false, systemPrompt, attachments }: QueryRequest = await req.json();
+    const { query, knowledgeBaseId, modelArn, inferenceProfileId, inferenceProfileArn, useKnowledgeBase = true, generateTitle = false, systemPrompt, attachments, includeCitations = false }: QueryRequest = await req.json();
 
-    console.log('Received request:', { modelArn, inferenceProfileId, inferenceProfileArn, useKnowledgeBase, attachments });
+    console.log('Received request:', { modelArn, inferenceProfileId, inferenceProfileArn, useKnowledgeBase, attachments, includeCitations });
 
     if (!query || query.trim().length === 0) {
       return new Response(
@@ -220,7 +221,7 @@ Deno.serve(async (req: Request) => {
         finalModelArn = `arn:aws:bedrock:${awsRegion}::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0`;
       }
 
-      const body = {
+      const body: any = {
         input: {
           text: enhancedQuery
         },
@@ -245,6 +246,14 @@ Deno.serve(async (req: Request) => {
           }
         }
       };
+
+      if (includeCitations) {
+        body.retrieveAndGenerateConfiguration.knowledgeBaseConfiguration.orchestrationConfiguration = {
+          queryTransformationConfiguration: {
+            type: "QUERY_DECOMPOSITION"
+          }
+        };
+      }
 
       const bodyString = JSON.stringify(body);
       const headers = await signRequest(
