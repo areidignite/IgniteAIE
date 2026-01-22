@@ -45,6 +45,10 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
         throw new Error('No authentication token');
       }
 
+      const timestamp = Date.now();
+      const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const fileKey = `${timestamp}-${sanitizedFileName}`;
+
       const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-upload-url`;
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -54,19 +58,20 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          fileName: file.name,
+          key: fileKey,
           contentType: file.type || 'application/octet-stream',
           knowledgeBaseId: selectedKnowledgeBase,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get upload URL');
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.message || 'Failed to get upload URL');
       }
 
-      const { uploadUrl, key } = await response.json();
+      const { url } = await response.json();
 
-      const uploadResponse = await fetch(uploadUrl, {
+      const uploadResponse = await fetch(url, {
         method: 'PUT',
         headers: {
           'Content-Type': file.type || 'application/octet-stream',
@@ -80,7 +85,7 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
 
       setAttachedFiles([...attachedFiles, {
         name: file.name,
-        s3Key: key,
+        s3Key: fileKey,
         size: file.size,
       }]);
     } catch (error) {
