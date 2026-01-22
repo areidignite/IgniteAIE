@@ -1,4 +1,4 @@
-import { FolderOpen, File, Download, RefreshCw, Upload, Trash2, RefreshCcw, X, Copy } from 'lucide-react';
+import { FolderOpen, File, Download, RefreshCw, Upload, Trash2, RefreshCcw, X, Copy, ChevronRight, Home } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { RepositoryBrowser } from './RepositoryBrowser';
@@ -8,6 +8,14 @@ interface S3Object {
   Size: number;
   LastModified: string;
   ETag: string;
+}
+
+interface FolderItem {
+  name: string;
+  path: string;
+  isFolder: boolean;
+  size?: number;
+  lastModified?: string;
 }
 
 interface S3BucketBrowserProps {
@@ -28,6 +36,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
   const [syncing, setSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string>('');
   const [showRepositoryBrowser, setShowRepositoryBrowser] = useState(false);
+  const [currentPath, setCurrentPath] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const statusCheckIntervalRef = useRef<number | null>(null);
 
@@ -82,9 +91,69 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
     fetchObjects(true);
   }, [selectedKnowledgeBase]);
 
-  const filteredObjects = filterText
-    ? allObjects.filter(obj => obj.Key.toLowerCase().includes(filterText.toLowerCase()))
-    : allObjects;
+  const getCurrentFolderItems = (): FolderItem[] => {
+    const items = new Map<string, FolderItem>();
+    const prefix = currentPath ? `${currentPath}/` : '';
+
+    allObjects.forEach(obj => {
+      if (!obj.Key.startsWith(prefix)) return;
+
+      const relativePath = obj.Key.substring(prefix.length);
+      const slashIndex = relativePath.indexOf('/');
+
+      if (slashIndex === -1 && relativePath) {
+        items.set(obj.Key, {
+          name: relativePath,
+          path: obj.Key,
+          isFolder: false,
+          size: obj.Size,
+          lastModified: obj.LastModified,
+        });
+      } else if (slashIndex > 0) {
+        const folderName = relativePath.substring(0, slashIndex);
+        const folderPath = prefix + folderName;
+        if (!items.has(folderPath)) {
+          items.set(folderPath, {
+            name: folderName,
+            path: folderPath,
+            isFolder: true,
+          });
+        }
+      }
+    });
+
+    return Array.from(items.values()).sort((a, b) => {
+      if (a.isFolder && !b.isFolder) return -1;
+      if (!a.isFolder && b.isFolder) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  };
+
+  const getFilesInFolder = (folderPath: string): S3Object[] => {
+    const prefix = `${folderPath}/`;
+    return allObjects.filter(obj => obj.Key.startsWith(prefix));
+  };
+
+  const navigateToPath = (path: string) => {
+    setCurrentPath(path);
+  };
+
+  const getPathSegments = () => {
+    if (!currentPath) return [];
+    return currentPath.split('/');
+  };
+
+  const handleItemClick = (item: FolderItem) => {
+    if (item.isFolder) {
+      setCurrentPath(item.path);
+    }
+  };
+
+  const items = filterText
+    ? getCurrentFolderItems().filter(item =>
+        item.name.toLowerCase().includes(filterText.toLowerCase())
+      )
+    : getCurrentFolderItems();
 
   const formatSize = (bytes: number) => {
     if (bytes === 0) return '0 B';
@@ -144,15 +213,6 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
     } finally {
       setLoadingUrl(null);
     }
-  };
-
-  const getFileIcon = (key: string) => {
-    return key.endsWith('/') ? <FolderOpen className="w-4 h-4" /> : <File className="w-4 h-4" />;
-  };
-
-  const getFileName = (key: string) => {
-    const parts = key.split('/');
-    return parts[parts.length - 1] || key;
   };
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -237,7 +297,8 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
   };
 
   const handleDelete = async (key: string) => {
-    if (!confirm(`Are you sure you want to delete "${getFileName(key)}"?`)) {
+    const fileName = key.split('/').pop() || key;
+    if (!confirm(`Are you sure you want to delete "${fileName}"?`)) {
       return;
     }
 
@@ -503,71 +564,111 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
         </div>
       </div>
 
-      {filteredObjects.length === 0 && !loading ? (
+      {!filterText && (
+        <div className="mb-4 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 overflow-x-auto pb-2">
+          <button
+            onClick={() => navigateToPath('')}
+            className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex-shrink-0"
+            title="Go to root"
+          >
+            <Home className="w-4 h-4" />
+          </button>
+          {getPathSegments().map((segment, index) => {
+            const path = getPathSegments().slice(0, index + 1).join('/');
+            return (
+              <div key={path} className="flex items-center gap-1 flex-shrink-0">
+                <ChevronRight className="w-4 h-4 text-slate-400" />
+                <button
+                  onClick={() => navigateToPath(path)}
+                  className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium"
+                >
+                  {segment}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {items.length === 0 && !loading ? (
         <div className="text-center py-8 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 rounded-lg">
           <FolderOpen className="w-12 h-12 mx-auto mb-3" />
-          <p>{filterText ? 'No files match your search' : 'No Files Found'}</p>
+          <p>{filterText ? 'No files match your search' : currentPath ? 'Empty folder' : 'No Files Found'}</p>
         </div>
       ) : (
-        <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-              <tr>
-                <th className="text-left px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300">Name</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300">Size</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300">Last Modified</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-              {filteredObjects.map((obj) => (
-                <tr key={obj.Key} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      {getFileIcon(obj.Key)}
-                      <span className="text-sm text-slate-800 dark:text-slate-200 truncate max-w-md" title={obj.Key}>
-                        {getFileName(obj.Key)}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{formatSize(obj.Size)}</td>
-                  <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{formatDate(obj.LastModified)}</td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex gap-2 justify-end">
-                      <button
-                        onClick={() => handleDownload(obj.Key)}
-                        disabled={loadingUrl === obj.Key || obj.Key.endsWith('/')}
-                        className="inline-flex items-center gap-1 px-3 py-1 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        title={obj.Key.endsWith('/') ? 'Cannot download folders' : 'View/Download'}
-                      >
-                        {loadingUrl === obj.Key ? (
-                          <RefreshCw className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Download className="w-4 h-4" />
-                        )}
-                        View
-                      </button>
-                      <button
-                        onClick={() => handleDelete(obj.Key)}
-                        disabled={deletingKey === obj.Key || obj.Key.endsWith('/')}
-                        className="inline-flex items-center gap-1 px-3 py-1 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        title={obj.Key.endsWith('/') ? 'Cannot delete folders' : 'Delete'}
-                      >
-                        {deletingKey === obj.Key ? (
-                          <RefreshCw className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-4 h-4" />
-                        )}
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <div className="space-y-2">
+          {items.map((item) => {
+            const fileCount = item.isFolder ? getFilesInFolder(item.path).length : 0;
+
+            return (
+              <div
+                key={item.path}
+                onClick={() => handleItemClick(item)}
+                className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
+                  item.isFolder
+                    ? 'cursor-pointer border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                    : 'border-slate-200 dark:border-slate-700'
+                }`}
+              >
+                {item.isFolder ? (
+                  <FolderOpen className="w-5 h-5 text-amber-500 dark:text-amber-400 flex-shrink-0" />
+                ) : (
+                  <File className="w-5 h-5 text-slate-400 dark:text-slate-500 flex-shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
+                    {item.name}
+                  </p>
+                  {!item.isFolder && item.size !== undefined && item.lastModified && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {formatSize(item.size)} • {formatDate(item.lastModified)}
+                    </p>
+                  )}
+                  {item.isFolder && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Folder • {fileCount} file{fileCount !== 1 ? 's' : ''}
+                    </p>
+                  )}
+                </div>
+                {!item.isFolder && (
+                  <div className="flex gap-2 flex-shrink-0">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownload(item.path);
+                      }}
+                      disabled={loadingUrl === item.path}
+                      className="inline-flex items-center gap-1 px-3 py-1 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="View/Download"
+                    >
+                      {loadingUrl === item.path ? (
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Download className="w-4 h-4" />
+                      )}
+                      View
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(item.path);
+                      }}
+                      disabled={deletingKey === item.path}
+                      className="inline-flex items-center gap-1 px-3 py-1 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Delete"
+                    >
+                      {deletingKey === item.path ? (
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
