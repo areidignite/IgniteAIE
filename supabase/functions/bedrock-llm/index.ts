@@ -181,27 +181,28 @@ Deno.serve(async (req: Request) => {
 
     // Detect if there are multiple questions (numbered or separated by line breaks)
     const hasMultipleQuestions = /^\s*\d+[\.)]\s+/m.test(query) || query.split('\n').filter(line => line.trim().endsWith('?')).length > 1;
+    const hasAttachments = attachments && attachments.length > 0;
 
     let enhancedQuery = query;
 
-    // Add instruction for multiple questions
-    if (hasMultipleQuestions) {
-      enhancedQuery = `CRITICAL INSTRUCTION: This prompt contains multiple separate questions that MUST ALL be answered in full.
+    // Build enhanced query with attachment and multiple questions handling
+    if (hasAttachments || hasMultipleQuestions) {
+      let instructions = 'CRITICAL INSTRUCTIONS:\n';
 
-DO NOT STOP after answering just one question. You MUST continue through EVERY question in the list.
-DO NOT abbreviate, summarize, or skip ANY questions.
-DO NOT say "I've answered the first question" or similar - just continue answering all questions.
-Provide complete, detailed answers for EACH AND EVERY question below.
+      if (hasAttachments) {
+        const filesList = attachments!.map(f => `- ${f.name}`).join('\n');
+        instructions += `\n1. DOCUMENT CONTEXT: The user has attached specific documents that contain ALL the information needed to answer these questions:\n${filesList}\n\nYou MUST use information from these attached documents to answer the questions. These documents are in the knowledge base and contain the complete answers.\n`;
+      }
 
-Questions to answer:
-${query}
+      if (hasMultipleQuestions) {
+        instructions += `\n2. MULTIPLE QUESTIONS: This prompt contains multiple separate questions that MUST ALL be answered in full.
+   - DO NOT STOP after answering just one question
+   - You MUST continue through EVERY question in the list
+   - DO NOT abbreviate, summarize, or skip ANY questions
+   - Provide complete, detailed answers for EACH AND EVERY question\n`;
+      }
 
-Remember: Answer ALL questions above completely before finishing your response.`;
-    }
-
-    if (attachments && attachments.length > 0) {
-      const filesList = attachments.map(f => `- ${f.name} (${f.s3Key})`).join('\n');
-      enhancedQuery = `${enhancedQuery}\n\n[Context: The user has attached the following files that are already in the knowledge base:\n${filesList}\nPlease reference these files when answering.]`;
+      enhancedQuery = `${instructions}\nQuestions to answer:\n${query}\n\nRemember: ${hasAttachments ? 'Use the attached documents to ' : ''}answer ALL questions above completely.`;
     }
 
     const awsAccessKeyId = Deno.env.get("AWS_ACCESS_KEY_ID");
@@ -251,7 +252,7 @@ Remember: Answer ALL questions above completely before finishing your response.`
             modelArn: finalModelArn,
             retrievalConfiguration: {
               vectorSearchConfiguration: {
-                numberOfResults: 10
+                numberOfResults: 25
               }
             },
             generationConfiguration: {
