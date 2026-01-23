@@ -432,12 +432,12 @@ REMINDER: Answer EVERY SINGLE question listed above. Keep answers concise but co
         const trimmedAnswer = answer.trim();
         console.log('First 200 chars of trimmed answer:', trimmedAnswer.slice(0, 200));
 
-        // Strategy 1: Check if the answer starts with a question (e.g., "Question 4: What is...")
-        // This should be the primary strategy since the response format includes this
-        const answerQuestionMatch = trimmedAnswer.match(/^Question\s+\d+:\s*([^?]+\?)/im);
+        // Strategy 1: Check if the answer starts with "Question [number]:" pattern
+        // Extract everything from "Question X:" until the end of the line or first period/question mark
+        const answerQuestionMatch = trimmedAnswer.match(/^Question\s+\d+:\s*[^\n]+/im);
         if (answerQuestionMatch && answerQuestionMatch[0].trim().length > 10) {
           questionText = answerQuestionMatch[0].trim();
-          console.log('Found question in answer:', questionText);
+          console.log('Found question pattern in answer:', questionText);
         }
 
         // Strategy 2: Check if the user's prompt contains a direct question
