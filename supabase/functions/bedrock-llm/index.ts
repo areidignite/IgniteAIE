@@ -436,7 +436,7 @@ REMINDER: Answer EVERY SINGLE question listed above. Keep answers concise but co
 
         // Strategy 2: Check if the answer starts with a question (e.g., "Question 4: What is...")
         if (!questionText) {
-          const answerQuestionMatch = answer.match(/^(?:Question\s+\d+:\s*)?([^?]+\?)/i);
+          const answerQuestionMatch = answer.match(/^(Question\s+\d+:\s*[^?]+\?)/i);
           if (answerQuestionMatch && answerQuestionMatch[0].trim().length > 10) {
             questionText = answerQuestionMatch[0].trim();
           }
@@ -457,13 +457,36 @@ REMINDER: Answer EVERY SINGLE question listed above. Keep answers concise but co
           }
         }
 
-        // Create the title prompt based on whether we found a question
+        // If we found a question, use it directly as the title (no LLM generation needed)
         if (questionText) {
-          titlePrompt = `Create a 5-8 word title that captures this question:\n\n${questionText}`;
-        } else {
-          // No question found, use the answer content
-          titlePrompt = `Create a 5-8 word title for this content:\n\n${answer.slice(0, 500)}`;
+          console.log('Using question as title directly:', questionText);
+          titleDebug.generated = true;
+          titleDebug.title = questionText;
+
+          // Save to database immediately with the question as the title
+          const { error: updateError } = await supabaseClient
+            .from('documents')
+            .update({ title: questionText })
+            .eq('id', documentId);
+
+          if (updateError) {
+            console.error('Error updating document with question title:', updateError);
+            titleDebug.error = updateError.message;
+          } else {
+            console.log('Document title updated successfully with question');
+          }
+
+          // Skip LLM title generation since we're using the question directly
+          return NextResponse.json({
+            answer,
+            citations,
+            title: questionText,
+            titleDebug
+          });
         }
+
+        // No question found, use LLM to generate a title from the content
+        titlePrompt = `Create a 5-8 word title for this content:\n\n${answer.slice(0, 500)}`;
 
         let extractedModelId: string;
 
