@@ -186,7 +186,17 @@ Deno.serve(async (req: Request) => {
 
     // Add instruction for multiple questions
     if (hasMultipleQuestions) {
-      enhancedQuery = `IMPORTANT: The following prompt contains multiple questions. You MUST answer EVERY SINGLE QUESTION fully and completely. Do NOT summarize, abbreviate, or skip any questions. Provide detailed, comprehensive answers to each question.\n\n${query}`;
+      enhancedQuery = `CRITICAL INSTRUCTION: This prompt contains multiple separate questions that MUST ALL be answered in full.
+
+DO NOT STOP after answering just one question. You MUST continue through EVERY question in the list.
+DO NOT abbreviate, summarize, or skip ANY questions.
+DO NOT say "I've answered the first question" or similar - just continue answering all questions.
+Provide complete, detailed answers for EACH AND EVERY question below.
+
+Questions to answer:
+${query}
+
+Remember: Answer ALL questions above completely before finishing your response.`;
     }
 
     if (attachments && attachments.length > 0) {
@@ -241,7 +251,7 @@ Deno.serve(async (req: Request) => {
             modelArn: finalModelArn,
             retrievalConfiguration: {
               vectorSearchConfiguration: {
-                numberOfResults: 5
+                numberOfResults: 10
               }
             },
             generationConfiguration: {
