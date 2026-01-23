@@ -46,9 +46,8 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
         throw new Error('No authentication token');
       }
 
-      const timestamp = Date.now();
       const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-      const fileKey = `${timestamp}-${sanitizedFileName}`;
+      const fileKey = sanitizedFileName;
 
       const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-upload-url`;
       const response = await fetch(apiUrl, {
