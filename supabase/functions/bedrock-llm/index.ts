@@ -124,8 +124,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -141,8 +140,13 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: { Authorization: authHeader }
+      }
+    });
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
       console.error("Auth error:", authError);
