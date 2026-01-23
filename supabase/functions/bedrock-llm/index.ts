@@ -33,7 +33,6 @@ interface BedrockResponse {
     location?: any;
   }>;
   title?: string | null;
-  titleDebug?: any;
 }
 
 async function sha256(message: string): Promise<string> {
@@ -412,219 +411,21 @@ REMINDER: Answer EVERY SINGLE question listed above. Keep answers concise but co
       answer = bedrockData.output?.message?.content?.[0]?.text || "No answer generated";
     }
 
+    // Generate title from first line of response (no LLM call needed)
     let title: string | undefined;
-    const titleDebug: any = {
-      attempted: false,
-      generateTitleParam: generateTitle,
-      hasAnswer: !!answer,
-      answerLength: answer.length
-    };
-
-    console.log('Title generation check - generateTitle:', generateTitle, 'answer length:', answer.length);
 
     if (generateTitle && answer) {
-      titleDebug.attempted = true;
-      try {
-        let titlePrompt: string;
-        let questionText: string | null = null;
-
-        // Trim the answer to remove any leading/trailing whitespace
-        const trimmedAnswer = answer.trim();
-        console.log('First 200 chars of trimmed answer:', trimmedAnswer.slice(0, 200));
-
-        // Strategy 1: Check if the answer starts with "Question [number]:" pattern
-        // Extract everything from "Question X:" until the end of the line or first period/question mark
-        const answerQuestionMatch = trimmedAnswer.match(/^Question\s+\d+:\s*[^\n]+/im);
-        if (answerQuestionMatch && answerQuestionMatch[0].trim().length > 10) {
-          questionText = answerQuestionMatch[0].trim();
-          console.log('Found question pattern in answer:', questionText);
-        }
-
-        // Strategy 2: Check if the user's prompt contains a direct question
-        if (!questionText) {
-          const directQuestionMatch = query.match(/[^.!?]*\?[^.!?]*/);
-          if (directQuestionMatch && directQuestionMatch[0].trim().length > 10) {
-            questionText = directQuestionMatch[0].trim();
-            console.log('Found question in user prompt:', questionText);
-          }
-        }
-
-        // Strategy 3: Check if prompt asks to answer a question and extract it from the answer
-        if (!questionText && /answer\s+question\s+\d+|question\s+\d+/i.test(query)) {
-          // Look for any sentence ending with ? in the first 1000 chars of the answer
-          const possibleQuestions = answer.slice(0, 1000).match(/[^.!]*\?/g);
-          if (possibleQuestions && possibleQuestions.length > 0) {
-            // Use the first substantial question found
-            for (const q of possibleQuestions) {
-              if (q.trim().length > 20) {
-                questionText = q.trim();
-                break;
-              }
-            }
-          }
-        }
-
-        // If we found a question, use it directly as the title (no LLM generation needed)
-        if (questionText) {
-          console.log('Using question as title directly:', questionText);
-          titleDebug.generated = true;
-          titleDebug.title = questionText;
-
-          // Save to database immediately with the question as the title
-          const { error: updateError } = await supabaseClient
-            .from('documents')
-            .update({ title: questionText })
-            .eq('id', documentId);
-
-          if (updateError) {
-            console.error('Error updating document with question title:', updateError);
-            titleDebug.error = updateError.message;
-          } else {
-            console.log('Document title updated successfully with question');
-          }
-
-          // Skip LLM title generation since we're using the question directly
-          return NextResponse.json({
-            answer,
-            citations,
-            title: questionText,
-            titleDebug
-          });
-        }
-
-        // No question found, use LLM to generate a title from the content
-        titlePrompt = `Create a 5-8 word title for this content:\n\n${answer.slice(0, 500)}`;
-
-        let extractedModelId: string;
-
-        if (inferenceProfileId) {
-          extractedModelId = inferenceProfileId;
-        } else if (modelArn) {
-          extractedModelId = modelArn.includes('foundation-model/')
-            ? modelArn.split('foundation-model/')[1]
-            : modelArn;
-        } else {
-          extractedModelId = 'anthropic.claude-3-5-sonnet-20240620-v1:0';
-        }
-
-        console.log('Title generation - extractedModelId:', extractedModelId);
-
-        const endpoint = `https://bedrock-runtime.${awsRegion}.amazonaws.com/model/${extractedModelId}/converse`;
-        console.log('Title generation endpoint:', endpoint);
-        titleDebug.endpoint = endpoint;
-
-        const titleBody = {
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  text: titlePrompt
-                }
-              ]
-            }
-          ],
-          inferenceConfig: {
-            maxTokens: 1500,
-            temperature: 0.3
-          },
-          system: [
-            {
-              text: "You are a title generator. Output only a short title (5-8 words). No reasoning, no explanations, no quotes. Just the title."
-            }
-          ]
-        };
-
-        const titleBodyString = JSON.stringify(titleBody);
-        const titleHeaders = await signRequest(
-          "POST",
-          endpoint,
-          titleBodyString,
-          awsRegion,
-          "bedrock",
-          awsAccessKeyId,
-          awsSecretAccessKey
-        );
-
-        console.log('Making title request...');
-        const titleResponse = await fetch(endpoint, {
-          method: "POST",
-          headers: titleHeaders,
-          body: titleBodyString,
-        });
-
-        console.log('Title response status:', titleResponse.status);
-        titleDebug.status = titleResponse.status;
-
-        if (titleResponse.ok) {
-          const titleData = await titleResponse.json();
-          console.log('Title response data:', JSON.stringify(titleData));
-          titleDebug.fullResponse = titleData;
-
-          let rawTitle: string | undefined;
-          const contentArray = titleData.output?.message?.content;
-
-          if (contentArray && Array.isArray(contentArray)) {
-            for (const item of contentArray) {
-              if (item.text) {
-                rawTitle = item.text;
-                break;
-              } else if (item.reasoningContent?.reasoningText?.text) {
-                continue;
-              }
-            }
-
-            if (!rawTitle) {
-              for (const item of contentArray) {
-                if (item.reasoningContent?.reasoningText?.text) {
-                  const reasoningText = item.reasoningContent.reasoningText.text;
-                  const lastSentence = reasoningText.split('.').filter((s: string) => s.trim()).pop();
-                  if (lastSentence && lastSentence.length < 100) {
-                    rawTitle = lastSentence.trim();
-                    titleDebug.extractedFromReasoning = true;
-                    break;
-                  }
-                }
-              }
-            }
-          }
-
-          console.log('Raw title:', rawTitle);
-          titleDebug.rawTitle = rawTitle;
-          if (rawTitle) {
-            title = rawTitle.trim().replace(/^["']|["']$/g, '').slice(0, 100);
-            console.log('Processed title:', title);
-            titleDebug.processedTitle = title;
-          } else {
-            console.log('No raw title found in response');
-            titleDebug.error = 'No raw title in response';
-            titleDebug.outputExists = !!titleData.output;
-            titleDebug.messageExists = !!titleData.output?.message;
-            titleDebug.contentExists = !!titleData.output?.message?.content;
-            titleDebug.contentLength = titleData.output?.message?.content?.length;
-            titleDebug.stopReason = titleData.stopReason;
-          }
-        } else {
-          const errorText = await titleResponse.text();
-          console.error('Title generation error response:', errorText);
-          titleDebug.error = errorText;
-        }
-      } catch (titleError) {
-        console.error('Error generating title (exception):', titleError);
-        titleDebug.error = titleError instanceof Error ? titleError.message : String(titleError);
-      }
-    } else {
-      console.log('Skipping title generation - generateTitle:', generateTitle, 'answer:', !!answer);
+      const trimmedAnswer = answer.trim();
+      // Extract the first line of the response (up to newline or max 150 chars)
+      const firstLine = trimmedAnswer.split('\n')[0].trim();
+      title = firstLine.slice(0, 150);
+      console.log('Using first line of response as title:', title);
     }
-
-    console.log('Final title value before response:', title);
-    titleDebug.finalTitle = title;
 
     const response: BedrockResponse = {
       answer,
       citations,
       title: title || null,
-      titleDebug,
     };
 
     return new Response(JSON.stringify(response), {
