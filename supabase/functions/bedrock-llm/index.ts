@@ -425,7 +425,18 @@ REMINDER: Answer EVERY SINGLE question listed above. Keep answers concise but co
     if (generateTitle && answer) {
       titleDebug.attempted = true;
       try {
-        const titlePrompt = `Create a 5-8 word title for this content:\n\n${answer.slice(0, 500)}`;
+        // Check if the original query contains a question
+        const questionMatch = query.match(/[^.!?]*\?[^.!?]*/);
+        const hasQuestion = questionMatch && questionMatch[0].trim().length > 0;
+
+        let titlePrompt: string;
+        if (hasQuestion) {
+          // If there's a question in the prompt, use it for the title
+          titlePrompt = `Create a 5-8 word title based on this question:\n\n${questionMatch[0].trim()}`;
+        } else {
+          // Otherwise, use the answer content
+          titlePrompt = `Create a 5-8 word title for this content:\n\n${answer.slice(0, 500)}`;
+        }
 
         let extractedModelId: string;
 
