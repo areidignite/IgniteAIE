@@ -179,10 +179,19 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Detect if there are multiple questions (numbered or separated by line breaks)
+    const hasMultipleQuestions = /^\s*\d+[\.)]\s+/m.test(query) || query.split('\n').filter(line => line.trim().endsWith('?')).length > 1;
+
     let enhancedQuery = query;
+
+    // Add instruction for multiple questions
+    if (hasMultipleQuestions) {
+      enhancedQuery = `IMPORTANT: The following prompt contains multiple questions. You MUST answer EVERY SINGLE QUESTION fully and completely. Do NOT summarize, abbreviate, or skip any questions. Provide detailed, comprehensive answers to each question.\n\n${query}`;
+    }
+
     if (attachments && attachments.length > 0) {
       const filesList = attachments.map(f => `- ${f.name} (${f.s3Key})`).join('\n');
-      enhancedQuery = `${query}\n\n[Context: The user has attached the following files that are already in the knowledge base:\n${filesList}\nPlease reference these files when answering.]`;
+      enhancedQuery = `${enhancedQuery}\n\n[Context: The user has attached the following files that are already in the knowledge base:\n${filesList}\nPlease reference these files when answering.]`;
     }
 
     const awsAccessKeyId = Deno.env.get("AWS_ACCESS_KEY_ID");
@@ -238,7 +247,7 @@ Deno.serve(async (req: Request) => {
             generationConfiguration: {
               inferenceConfig: {
                 textInferenceConfig: {
-                  maxTokens: 4096,
+                  maxTokens: 8192,
                   temperature: 0.7
                 }
               }
@@ -294,7 +303,7 @@ Deno.serve(async (req: Request) => {
       const bedrockData = await bedrockResponse.json();
       answer = bedrockData.output?.text || "No answer generated";
 
-      if (bedrockData.citations) {
+      if (includeCitations && bedrockData.citations) {
         citations = bedrockData.citations.flatMap((citation: any) =>
           (citation.retrievedReferences || []).map((ref: any) => ({
             text: ref?.content?.text || "",
@@ -327,7 +336,7 @@ Deno.serve(async (req: Request) => {
           }
         ],
         inferenceConfig: {
-          maxTokens: 4096,
+          maxTokens: 8192,
           temperature: 0.7
         }
       };
