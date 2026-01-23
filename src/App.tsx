@@ -351,9 +351,20 @@ function App() {
     setImprovingPrompt(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('No active session');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        console.error('Session error:', sessionError);
+        throw new Error('Your session has expired. Please log out and log back in.');
+      }
+
+      const tokenExpiry = session.expires_at ? session.expires_at * 1000 : 0;
+      const now = Date.now();
+      if (tokenExpiry > 0 && tokenExpiry < now) {
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshData.session) {
+          throw new Error('Your session has expired. Please log out and log back in.');
+        }
+        session.access_token = refreshData.session.access_token;
       }
 
       let systemPrompt = '';
@@ -416,6 +427,9 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
       );
 
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Authentication failed. Please log out and log back in to refresh your session.');
+        }
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to improve prompt');
       }
@@ -440,9 +454,20 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
     setCurrentCitations([]);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('No active session');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        console.error('Session error:', sessionError);
+        throw new Error('Your session has expired. Please log out and log back in.');
+      }
+
+      const tokenExpiry = session.expires_at ? session.expires_at * 1000 : 0;
+      const now = Date.now();
+      if (tokenExpiry > 0 && tokenExpiry < now) {
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshData.session) {
+          throw new Error('Your session has expired. Please log out and log back in.');
+        }
+        session.access_token = refreshData.session.access_token;
       }
 
       const selectedModelData = models.find(m => m.modelArn === selectedModel);
@@ -485,6 +510,9 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
       );
 
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Authentication failed. Please log out and log back in to refresh your session.');
+        }
         const errorData = await response.json();
         console.error('Full error response:', errorData);
         const errorMsg = errorData.details
