@@ -199,10 +199,12 @@ Deno.serve(async (req: Request) => {
    - DO NOT STOP after answering just one question
    - You MUST continue through EVERY question in the list
    - DO NOT abbreviate, summarize, or skip ANY questions
-   - Provide complete, detailed answers for EACH AND EVERY question\n`;
+   - Provide complete, detailed answers for EACH AND EVERY question
+   - FORMAT: Start each answer with the question number/text as a clear header (e.g., "Question 1:" or "Q1:") followed by the complete answer
+   - Clearly separate each question-answer pair so they are distinct and easy to identify\n`;
       }
 
-      enhancedQuery = `${instructions}\nQuestions to answer:\n${query}\n\nRemember: ${hasAttachments ? 'Use the attached documents to ' : ''}answer ALL questions above completely.`;
+      enhancedQuery = `${instructions}\nQuestions to answer:\n${query}\n\nRemember: ${hasAttachments ? 'Use the attached documents to ' : ''}answer ALL questions above completely. Format your response with clear headers for each question.`;
     }
 
     const awsAccessKeyId = Deno.env.get("AWS_ACCESS_KEY_ID");
