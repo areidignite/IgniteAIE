@@ -186,37 +186,35 @@ Deno.serve(async (req: Request) => {
     let enhancedQuery = query;
 
     // Build enhanced query with attachment and multiple questions handling
-    if (hasAttachments || hasMultipleQuestions) {
-      let instructions = 'CRITICAL INSTRUCTIONS:\n';
+    if (hasMultipleQuestions) {
+      // Count approximate number of questions
+      const questionCount = (query.match(/^\s*\d+[\.)]\s+/gm) || []).length || query.split('\n').filter(line => line.trim().endsWith('?')).length;
 
-      if (hasAttachments) {
-        const filesList = attachments!.map(f => `- ${f.name}`).join('\n');
-        instructions += `\n1. DOCUMENT CONTEXT: The user has attached specific documents that contain ALL the information needed to answer these questions:\n${filesList}\n\nYou MUST use information from these attached documents to answer the questions. These documents are in the knowledge base and contain the complete answers.\n`;
+      // Calculate appropriate answer length based on question count
+      let answerLengthGuidance = '';
+      if (questionCount >= 5) {
+        answerLengthGuidance = 'CRITICAL LENGTH REQUIREMENT: Keep each answer to EXACTLY 2-3 SHORT paragraphs (about 150-200 words per answer). Be direct and concise - focus only on essential information.';
+      } else if (questionCount >= 3) {
+        answerLengthGuidance = 'LENGTH: Keep each answer to 3-4 paragraphs maximum to ensure all questions fit in the response.';
+      } else {
+        answerLengthGuidance = 'Provide thorough, detailed answers for each question.';
       }
 
-      if (hasMultipleQuestions) {
-        // Count approximate number of questions
-        const questionCount = (query.match(/^\s*\d+[\.)]\s+/gm) || []).length || query.split('\n').filter(line => line.trim().endsWith('?')).length;
+      const instructions = `CRITICAL INSTRUCTIONS:
 
-        // Calculate appropriate answer length based on question count
-        let answerLengthGuidance = '';
-        if (questionCount >= 5) {
-          answerLengthGuidance = 'CRITICAL LENGTH REQUIREMENT: Keep each answer to EXACTLY 2-3 SHORT paragraphs (about 150-200 words per answer). Be direct and concise - focus only on essential information.';
-        } else if (questionCount >= 3) {
-          answerLengthGuidance = 'LENGTH: Keep each answer to 3-4 paragraphs maximum to ensure all questions fit in the response.';
-        } else {
-          answerLengthGuidance = 'Provide thorough, detailed answers for each question.';
-        }
-
-        instructions += `\n2. MULTIPLE QUESTIONS: This prompt contains ${questionCount > 0 ? questionCount : 'multiple'} separate questions that MUST ALL be answered.
+MULTIPLE QUESTIONS: This prompt contains ${questionCount > 0 ? questionCount : 'multiple'} separate questions that MUST ALL be answered.
    - YOU MUST ANSWER ALL ${questionCount > 0 ? questionCount : ''} QUESTIONS - do not stop after just one or two
    - FORMAT: Start each answer with "Question ${questionCount > 0 ? '[NUMBER]' : '#'}:" as a clear header
    - ${answerLengthGuidance}
    - PRIORITY: It's better to answer ALL questions concisely than to answer only some questions in great detail
-   - Use clear line breaks between each question-answer pair\n`;
-      }
+   - Use clear line breaks between each question-answer pair
 
-      enhancedQuery = `${instructions}\nQuestions to answer:\n${query}\n\nREMINDER: ${hasAttachments ? 'Use the attached documents to ' : ''}Answer EVERY SINGLE question listed above. ${hasMultipleQuestions ? 'Keep answers concise but complete so ALL questions can be answered within the response limit.' : ''}`;
+Questions to answer:
+${query}
+
+REMINDER: Answer EVERY SINGLE question listed above. Keep answers concise but complete so ALL questions can be answered within the response limit.`;
+
+      enhancedQuery = instructions;
     }
 
     const awsAccessKeyId = Deno.env.get("AWS_ACCESS_KEY_ID");
