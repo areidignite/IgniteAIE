@@ -195,16 +195,18 @@ Deno.serve(async (req: Request) => {
       }
 
       if (hasMultipleQuestions) {
-        instructions += `\n2. MULTIPLE QUESTIONS: This prompt contains multiple separate questions that MUST ALL be answered in full.
-   - DO NOT STOP after answering just one question
-   - You MUST continue through EVERY question in the list
-   - DO NOT abbreviate, summarize, or skip ANY questions
-   - Provide complete, detailed answers for EACH AND EVERY question
-   - FORMAT: Start each answer with the question number/text as a clear header (e.g., "Question 1:" or "Q1:") followed by the complete answer
-   - Clearly separate each question-answer pair so they are distinct and easy to identify\n`;
+        // Count approximate number of questions
+        const questionCount = (query.match(/^\s*\d+[\.)]\s+/gm) || []).length || query.split('\n').filter(line => line.trim().endsWith('?')).length;
+
+        instructions += `\n2. MULTIPLE QUESTIONS: This prompt contains ${questionCount > 0 ? questionCount : 'multiple'} separate questions that MUST ALL be answered.
+   - DO NOT STOP after answering just one question - you MUST answer ALL ${questionCount > 0 ? questionCount : ''} questions
+   - FORMAT: Start each answer with "Question [NUMBER]:" as a header, then provide the answer
+   - ${questionCount > 5 ? 'IMPORTANT: Since there are many questions, keep each answer focused and concise (2-3 paragraphs) while still being complete and informative' : 'Provide thorough, detailed answers for each question'}
+   - Ensure ALL questions are answered before finishing - do not leave any questions unanswered
+   - Use clear spacing between question-answer pairs\n`;
       }
 
-      enhancedQuery = `${instructions}\nQuestions to answer:\n${query}\n\nRemember: ${hasAttachments ? 'Use the attached documents to ' : ''}answer ALL questions above completely. Format your response with clear headers for each question.`;
+      enhancedQuery = `${instructions}\nQuestions to answer:\n${query}\n\nIMPORTANT: ${hasAttachments ? 'Use the attached documents to ' : ''}Answer EVERY SINGLE question listed above. Format with clear "Question [NUMBER]:" headers.`;
     }
 
     const awsAccessKeyId = Deno.env.get("AWS_ACCESS_KEY_ID");
@@ -260,7 +262,7 @@ Deno.serve(async (req: Request) => {
             generationConfiguration: {
               inferenceConfig: {
                 textInferenceConfig: {
-                  maxTokens: 8192,
+                  maxTokens: 16384,
                   temperature: 0.7
                 }
               }
