@@ -198,15 +198,25 @@ Deno.serve(async (req: Request) => {
         // Count approximate number of questions
         const questionCount = (query.match(/^\s*\d+[\.)]\s+/gm) || []).length || query.split('\n').filter(line => line.trim().endsWith('?')).length;
 
+        // Calculate appropriate answer length based on question count
+        let answerLengthGuidance = '';
+        if (questionCount >= 5) {
+          answerLengthGuidance = 'CRITICAL LENGTH REQUIREMENT: Keep each answer to EXACTLY 2-3 SHORT paragraphs (about 150-200 words per answer). Be direct and concise - focus only on essential information.';
+        } else if (questionCount >= 3) {
+          answerLengthGuidance = 'LENGTH: Keep each answer to 3-4 paragraphs maximum to ensure all questions fit in the response.';
+        } else {
+          answerLengthGuidance = 'Provide thorough, detailed answers for each question.';
+        }
+
         instructions += `\n2. MULTIPLE QUESTIONS: This prompt contains ${questionCount > 0 ? questionCount : 'multiple'} separate questions that MUST ALL be answered.
-   - DO NOT STOP after answering just one question - you MUST answer ALL ${questionCount > 0 ? questionCount : ''} questions
-   - FORMAT: Start each answer with "Question [NUMBER]:" as a header, then provide the answer
-   - ${questionCount > 5 ? 'IMPORTANT: Since there are many questions, keep each answer focused and concise (2-3 paragraphs) while still being complete and informative' : 'Provide thorough, detailed answers for each question'}
-   - Ensure ALL questions are answered before finishing - do not leave any questions unanswered
-   - Use clear spacing between question-answer pairs\n`;
+   - YOU MUST ANSWER ALL ${questionCount > 0 ? questionCount : ''} QUESTIONS - do not stop after just one or two
+   - FORMAT: Start each answer with "Question ${questionCount > 0 ? '[NUMBER]' : '#'}:" as a clear header
+   - ${answerLengthGuidance}
+   - PRIORITY: It's better to answer ALL questions concisely than to answer only some questions in great detail
+   - Use clear line breaks between each question-answer pair\n`;
       }
 
-      enhancedQuery = `${instructions}\nQuestions to answer:\n${query}\n\nIMPORTANT: ${hasAttachments ? 'Use the attached documents to ' : ''}Answer EVERY SINGLE question listed above. Format with clear "Question [NUMBER]:" headers.`;
+      enhancedQuery = `${instructions}\nQuestions to answer:\n${query}\n\nREMINDER: ${hasAttachments ? 'Use the attached documents to ' : ''}Answer EVERY SINGLE question listed above. ${hasMultipleQuestions ? 'Keep answers concise but complete so ALL questions can be answered within the response limit.' : ''}`;
     }
 
     const awsAccessKeyId = Deno.env.get("AWS_ACCESS_KEY_ID");
@@ -262,7 +272,7 @@ Deno.serve(async (req: Request) => {
             generationConfiguration: {
               inferenceConfig: {
                 textInferenceConfig: {
-                  maxTokens: 16384,
+                  maxTokens: 8192,
                   temperature: 0.7
                 }
               }
