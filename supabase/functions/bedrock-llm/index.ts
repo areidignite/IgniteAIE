@@ -428,17 +428,24 @@ REMINDER: Answer EVERY SINGLE question listed above. Keep answers concise but co
         let titlePrompt: string;
         let questionText: string | null = null;
 
-        // Strategy 1: Check if the user's prompt contains a direct question
-        const directQuestionMatch = query.match(/[^.!?]*\?[^.!?]*/);
-        if (directQuestionMatch && directQuestionMatch[0].trim().length > 10) {
-          questionText = directQuestionMatch[0].trim();
+        // Trim the answer to remove any leading/trailing whitespace
+        const trimmedAnswer = answer.trim();
+        console.log('First 200 chars of trimmed answer:', trimmedAnswer.slice(0, 200));
+
+        // Strategy 1: Check if the answer starts with a question (e.g., "Question 4: What is...")
+        // This should be the primary strategy since the response format includes this
+        const answerQuestionMatch = trimmedAnswer.match(/^Question\s+\d+:\s*([^?]+\?)/im);
+        if (answerQuestionMatch && answerQuestionMatch[0].trim().length > 10) {
+          questionText = answerQuestionMatch[0].trim();
+          console.log('Found question in answer:', questionText);
         }
 
-        // Strategy 2: Check if the answer starts with a question (e.g., "Question 4: What is...")
+        // Strategy 2: Check if the user's prompt contains a direct question
         if (!questionText) {
-          const answerQuestionMatch = answer.match(/^(Question\s+\d+:\s*[^?]+\?)/i);
-          if (answerQuestionMatch && answerQuestionMatch[0].trim().length > 10) {
-            questionText = answerQuestionMatch[0].trim();
+          const directQuestionMatch = query.match(/[^.!?]*\?[^.!?]*/);
+          if (directQuestionMatch && directQuestionMatch[0].trim().length > 10) {
+            questionText = directQuestionMatch[0].trim();
+            console.log('Found question in user prompt:', questionText);
           }
         }
 
