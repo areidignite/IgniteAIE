@@ -425,16 +425,43 @@ REMINDER: Answer EVERY SINGLE question listed above. Keep answers concise but co
     if (generateTitle && answer) {
       titleDebug.attempted = true;
       try {
-        // Check if the original query contains a question
-        const questionMatch = query.match(/[^.!?]*\?[^.!?]*/);
-        const hasQuestion = questionMatch && questionMatch[0].trim().length > 0;
-
         let titlePrompt: string;
-        if (hasQuestion) {
-          // If there's a question in the prompt, use it for the title
-          titlePrompt = `Create a 5-8 word title based on this question:\n\n${questionMatch[0].trim()}`;
+        let questionText: string | null = null;
+
+        // Strategy 1: Check if the user's prompt contains a direct question
+        const directQuestionMatch = query.match(/[^.!?]*\?[^.!?]*/);
+        if (directQuestionMatch && directQuestionMatch[0].trim().length > 10) {
+          questionText = directQuestionMatch[0].trim();
+        }
+
+        // Strategy 2: Check if the answer starts with a question (e.g., "Question 4: What is...")
+        if (!questionText) {
+          const answerQuestionMatch = answer.match(/^(?:Question\s+\d+:\s*)?([^?]+\?)/i);
+          if (answerQuestionMatch && answerQuestionMatch[0].trim().length > 10) {
+            questionText = answerQuestionMatch[0].trim();
+          }
+        }
+
+        // Strategy 3: Check if prompt asks to answer a question and extract it from the answer
+        if (!questionText && /answer\s+question\s+\d+|question\s+\d+/i.test(query)) {
+          // Look for any sentence ending with ? in the first 1000 chars of the answer
+          const possibleQuestions = answer.slice(0, 1000).match(/[^.!]*\?/g);
+          if (possibleQuestions && possibleQuestions.length > 0) {
+            // Use the first substantial question found
+            for (const q of possibleQuestions) {
+              if (q.trim().length > 20) {
+                questionText = q.trim();
+                break;
+              }
+            }
+          }
+        }
+
+        // Create the title prompt based on whether we found a question
+        if (questionText) {
+          titlePrompt = `Create a 5-8 word title that captures this question:\n\n${questionText}`;
         } else {
-          // Otherwise, use the answer content
+          // No question found, use the answer content
           titlePrompt = `Create a 5-8 word title for this content:\n\n${answer.slice(0, 500)}`;
         }
 
