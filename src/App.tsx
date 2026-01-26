@@ -423,6 +423,9 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
       );
 
       if (!response.ok) {
+        if (response.status === 429) {
+          throw new Error('AWS Bedrock rate limit exceeded. Please wait 30-60 seconds before trying again.');
+        }
         const errorText = await response.text();
         console.error('Edge function error response:', errorText);
         let errorData;
@@ -506,6 +509,9 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
       if (!response.ok) {
         if (response.status === 401) {
           throw new Error('Authentication failed. Please log out and log back in to refresh your session.');
+        }
+        if (response.status === 429) {
+          throw new Error('AWS Bedrock rate limit exceeded. Please wait 30-60 seconds before trying again.');
         }
         const errorData = await response.json();
         console.error('Full error response:', errorData);
