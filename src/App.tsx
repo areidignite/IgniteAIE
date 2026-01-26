@@ -351,14 +351,17 @@ function App() {
     setImprovingPrompt(true);
 
     try {
-      // Always refresh the session to ensure we have a valid token
-      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError || !refreshData.session) {
-        console.error('Session refresh error:', refreshError);
-        throw new Error('Your session has expired. Please log out and log back in.');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
       }
 
-      const session = refreshData.session;
+      console.log('Session info:', {
+        hasAccessToken: !!session.access_token,
+        tokenLength: session.access_token?.length,
+        expiresAt: session.expires_at,
+        user: session.user?.email
+      });
 
       let systemPrompt = '';
 
@@ -420,11 +423,20 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
       );
 
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Authentication failed. Please log out and log back in to refresh your session.');
+        const errorText = await response.text();
+        console.error('Edge function error response:', errorText);
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText };
         }
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to improve prompt');
+        console.error('Parsed error data:', errorData);
+
+        if (response.status === 401) {
+          throw new Error(`Authentication failed: ${errorData.details || errorData.error || errorData.message || 'Invalid token'}`);
+        }
+        throw new Error(errorData.message || errorData.error || 'Failed to improve prompt');
       }
 
       const data = await response.json();
@@ -447,14 +459,10 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
     setCurrentCitations([]);
 
     try {
-      // Always refresh the session to ensure we have a valid token
-      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError || !refreshData.session) {
-        console.error('Session refresh error:', refreshError);
-        throw new Error('Your session has expired. Please log out and log back in.');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
       }
-
-      const session = refreshData.session;
 
       const selectedModelData = models.find(m => m.modelArn === selectedModel);
 
