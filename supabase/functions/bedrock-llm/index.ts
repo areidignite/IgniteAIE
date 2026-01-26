@@ -269,7 +269,7 @@ REMINDER: Answer EVERY SINGLE question listed above. Keep answers concise but co
             generationConfiguration: {
               inferenceConfig: {
                 textInferenceConfig: {
-                  maxTokens: 8192,
+                  maxTokens: 32000,
                   temperature: 0.7
                 }
               }
@@ -358,7 +358,7 @@ REMINDER: Answer EVERY SINGLE question listed above. Keep answers concise but co
           }
         ],
         inferenceConfig: {
-          maxTokens: 8192,
+          maxTokens: 32000,
           temperature: 0.7
         }
       };
