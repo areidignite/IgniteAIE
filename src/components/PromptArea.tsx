@@ -29,7 +29,6 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
     e.preventDefault();
     if (prompt.trim() && !isLoading) {
       await onSubmit(prompt, attachedFiles.length > 0 ? attachedFiles : undefined, includeCitations);
-      setAttachedFiles([]);
     }
   };
 
