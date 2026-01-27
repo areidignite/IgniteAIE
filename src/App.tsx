@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { FileText, LogOut, Info, Trash2, Sun, Moon } from 'lucide-react';
-import { supabase, type Document } from './lib/supabase';
+import { supabase, getValidSession, type Document } from './lib/supabase';
 import { AuthForm } from './components/AuthForm';
 import { UpdatePasswordForm } from './components/UpdatePasswordForm';
 import { PromptArea } from './components/PromptArea';
@@ -186,17 +186,7 @@ function App() {
 
     setLoadingModels(true);
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-      let currentSession = session;
-      if (sessionError || !currentSession) {
-        console.log('Session error or missing, attempting refresh...');
-        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError || !refreshedSession) {
-          throw new Error('Unable to get valid session. Please log out and log back in.');
-        }
-        currentSession = refreshedSession;
-      }
+      const currentSession = await getValidSession();
 
       if (!currentSession?.access_token) {
         throw new Error('No valid access token available');
@@ -252,17 +242,7 @@ function App() {
 
     setLoadingKnowledgeBases(true);
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-      let currentSession = session;
-      if (sessionError || !currentSession) {
-        console.log('Session error or missing, attempting refresh...');
-        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError || !refreshedSession) {
-          throw new Error('Unable to get valid session. Please log out and log back in.');
-        }
-        currentSession = refreshedSession;
-      }
+      const currentSession = await getValidSession();
 
       if (!currentSession?.access_token) {
         throw new Error('No valid access token available');
@@ -373,17 +353,7 @@ function App() {
     setImprovingPrompt(true);
 
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-      let currentSession = session;
-      if (sessionError || !currentSession) {
-        console.log('Session error or missing, attempting refresh...');
-        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError || !refreshedSession) {
-          throw new Error('Unable to get valid session. Please log out and log back in.');
-        }
-        currentSession = refreshedSession;
-      }
+      const currentSession = await getValidSession();
 
       if (!currentSession?.access_token) {
         throw new Error('No valid access token available');
@@ -495,17 +465,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
     setCurrentCitations([]);
 
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-      let currentSession = session;
-      if (sessionError || !currentSession) {
-        console.log('Session error or missing, attempting refresh...');
-        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError || !refreshedSession) {
-          throw new Error('Unable to get valid session. Please log out and log back in.');
-        }
-        currentSession = refreshedSession;
-      }
+      const currentSession = await getValidSession();
 
       if (!currentSession?.access_token) {
         throw new Error('No valid access token available');
