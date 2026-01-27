@@ -186,9 +186,20 @@ function App() {
 
     setLoadingModels(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('No active session');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      let currentSession = session;
+      if (sessionError || !currentSession) {
+        console.log('Session error or missing, attempting refresh...');
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshedSession) {
+          throw new Error('Unable to get valid session. Please log out and log back in.');
+        }
+        currentSession = refreshedSession;
+      }
+
+      if (!currentSession?.access_token) {
+        throw new Error('No valid access token available');
       }
 
       const response = await fetch(
@@ -196,7 +207,7 @@ function App() {
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${session.access_token}`,
+            'Authorization': `Bearer ${currentSession.access_token}`,
             'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
             'Content-Type': 'application/json',
           },
@@ -241,9 +252,20 @@ function App() {
 
     setLoadingKnowledgeBases(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('No active session');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      let currentSession = session;
+      if (sessionError || !currentSession) {
+        console.log('Session error or missing, attempting refresh...');
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshedSession) {
+          throw new Error('Unable to get valid session. Please log out and log back in.');
+        }
+        currentSession = refreshedSession;
+      }
+
+      if (!currentSession?.access_token) {
+        throw new Error('No valid access token available');
       }
 
       const response = await fetch(
@@ -251,7 +273,7 @@ function App() {
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${session.access_token}`,
+            'Authorization': `Bearer ${currentSession.access_token}`,
             'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
             'Content-Type': 'application/json',
           },
@@ -351,16 +373,27 @@ function App() {
     setImprovingPrompt(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('No active session');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      let currentSession = session;
+      if (sessionError || !currentSession) {
+        console.log('Session error or missing, attempting refresh...');
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshedSession) {
+          throw new Error('Unable to get valid session. Please log out and log back in.');
+        }
+        currentSession = refreshedSession;
+      }
+
+      if (!currentSession?.access_token) {
+        throw new Error('No valid access token available');
       }
 
       console.log('Session info:', {
-        hasAccessToken: !!session.access_token,
-        tokenLength: session.access_token?.length,
-        expiresAt: session.expires_at,
-        user: session.user?.email
+        hasAccessToken: !!currentSession.access_token,
+        tokenLength: currentSession.access_token?.length,
+        expiresAt: currentSession.expires_at,
+        user: currentSession.user?.email
       });
 
       let systemPrompt = '';
@@ -408,7 +441,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${session.access_token}`,
+            'Authorization': `Bearer ${currentSession.access_token}`,
             'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
             'Content-Type': 'application/json',
           },
@@ -462,9 +495,20 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
     setCurrentCitations([]);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('No active session');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      let currentSession = session;
+      if (sessionError || !currentSession) {
+        console.log('Session error or missing, attempting refresh...');
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshedSession) {
+          throw new Error('Unable to get valid session. Please log out and log back in.');
+        }
+        currentSession = refreshedSession;
+      }
+
+      if (!currentSession?.access_token) {
+        throw new Error('No valid access token available');
       }
 
       const selectedModelData = models.find(m => m.modelArn === selectedModel);
@@ -488,7 +532,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${session.access_token}`,
+            'Authorization': `Bearer ${currentSession.access_token}`,
             'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
             'Content-Type': 'application/json',
           },
