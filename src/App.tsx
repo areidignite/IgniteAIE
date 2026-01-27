@@ -622,7 +622,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
           <div className="space-y-3">
             <div className="flex items-center gap-4">
               <img
-                src="/igniteicon copy copy copy.png"
+                src="igniteicon.png"
                 alt="IgniteIT Logo"
                 className="h-16 w-16 object-contain"
               />
