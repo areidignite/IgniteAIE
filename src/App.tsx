@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { FileText, LogOut, Info, Trash2, Sun, Moon } from 'lucide-react';
-import { supabase, getValidSession, type Document } from './lib/supabase';
+import { supabase, type Document } from './lib/supabase';
 import { AuthForm } from './components/AuthForm';
 import { UpdatePasswordForm } from './components/UpdatePasswordForm';
 import { PromptArea } from './components/PromptArea';
@@ -186,10 +186,11 @@ function App() {
 
     setLoadingModels(true);
     try {
-      const currentSession = await getValidSession();
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
 
-      if (!currentSession?.access_token) {
-        throw new Error('No valid access token available');
+      if (!token) {
+        throw new Error('No authentication token');
       }
 
       const response = await fetch(
@@ -197,7 +198,7 @@ function App() {
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${currentSession.access_token}`,
+            'Authorization': `Bearer ${token}`,
             'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
             'Content-Type': 'application/json',
           },
@@ -242,10 +243,11 @@ function App() {
 
     setLoadingKnowledgeBases(true);
     try {
-      const currentSession = await getValidSession();
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
 
-      if (!currentSession?.access_token) {
-        throw new Error('No valid access token available');
+      if (!token) {
+        throw new Error('No authentication token');
       }
 
       const response = await fetch(
@@ -253,7 +255,7 @@ function App() {
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${currentSession.access_token}`,
+            'Authorization': `Bearer ${token}`,
             'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
             'Content-Type': 'application/json',
           },
@@ -353,18 +355,12 @@ function App() {
     setImprovingPrompt(true);
 
     try {
-      const currentSession = await getValidSession();
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
 
-      if (!currentSession?.access_token) {
-        throw new Error('No valid access token available');
+      if (!token) {
+        throw new Error('No authentication token');
       }
-
-      console.log('Session info:', {
-        hasAccessToken: !!currentSession.access_token,
-        tokenLength: currentSession.access_token?.length,
-        expiresAt: currentSession.expires_at,
-        user: currentSession.user?.email
-      });
 
       let systemPrompt = '';
 
@@ -411,7 +407,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${currentSession.access_token}`,
+            'Authorization': `Bearer ${token}`,
             'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
             'Content-Type': 'application/json',
           },
@@ -465,10 +461,11 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
     setCurrentCitations([]);
 
     try {
-      const currentSession = await getValidSession();
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
 
-      if (!currentSession?.access_token) {
-        throw new Error('No valid access token available');
+      if (!token) {
+        throw new Error('No authentication token');
       }
 
       const selectedModelData = models.find(m => m.modelArn === selectedModel);
@@ -492,7 +489,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${currentSession.access_token}`,
+            'Authorization': `Bearer ${token}`,
             'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
             'Content-Type': 'application/json',
           },
