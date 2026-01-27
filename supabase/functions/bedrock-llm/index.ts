@@ -165,6 +165,54 @@ Deno.serve(async (req: Request) => {
 
     console.log('Received request:', { modelArn, inferenceProfileId, inferenceProfileArn, useKnowledgeBase, attachments, includeCitations });
 
+    // Fetch model details to get max output tokens
+    let maxOutputTokens = 8000; // Default fallback
+    if (modelArn) {
+      try {
+        const modelId = modelArn.split('/').pop() || modelArn;
+        const awsAccessKeyId = Deno.env.get("AWS_ACCESS_KEY_ID")!;
+        const awsSecretAccessKey = Deno.env.get("AWS_SECRET_ACCESS_KEY")!;
+        const awsRegion = Deno.env.get("AWS_REGION") || "us-east-1";
+
+        const modelDetailsEndpoint = `https://bedrock.${awsRegion}.amazonaws.com/foundation-models/${encodeURIComponent(modelId)}`;
+        const modelDetailsHeaders = await signRequest(
+          'GET',
+          modelDetailsEndpoint,
+          '',
+          awsRegion,
+          'bedrock',
+          awsAccessKeyId,
+          awsSecretAccessKey
+        );
+
+        const modelDetailsResponse = await fetch(modelDetailsEndpoint, {
+          method: 'GET',
+          headers: modelDetailsHeaders,
+        });
+
+        if (modelDetailsResponse.ok) {
+          const modelDetails = await modelDetailsResponse.json();
+          console.log('Model details:', modelDetails);
+
+          // Extract max output tokens from model details
+          if (modelDetails.modelDetails?.outputModalities) {
+            for (const modality of modelDetails.modelDetails.outputModalities) {
+              if (modality.text?.maxOutputTokens) {
+                maxOutputTokens = Math.floor(modality.text.maxOutputTokens * 0.95); // Use 95% as safety margin
+                console.log(`Using max output tokens: ${maxOutputTokens} (95% of ${modality.text.maxOutputTokens})`);
+                break;
+              }
+            }
+          }
+        } else {
+          console.warn('Failed to fetch model details, using default maxTokens');
+        }
+      } catch (error) {
+        console.warn('Error fetching model details:', error);
+        // Continue with default
+      }
+    }
+
     if (!query || query.trim().length === 0) {
       return new Response(
         JSON.stringify({ error: "Query is required" }),
@@ -269,7 +317,7 @@ REMINDER: Answer EVERY SINGLE question listed above. Keep answers concise but co
             generationConfiguration: {
               inferenceConfig: {
                 textInferenceConfig: {
-                  maxTokens: 8000,
+                  maxTokens: maxOutputTokens,
                   temperature: 0.7
                 }
               }
@@ -358,7 +406,7 @@ REMINDER: Answer EVERY SINGLE question listed above. Keep answers concise but co
           }
         ],
         inferenceConfig: {
-          maxTokens: 8000,
+          maxTokens: maxOutputTokens,
           temperature: 0.7
         }
       };
