@@ -364,7 +364,7 @@ Deno.serve(async (req: Request) => {
             role: "user",
             content: [
               {
-                text: enhancedQuery
+                text: query
               }
             ]
           }
