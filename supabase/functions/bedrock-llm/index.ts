@@ -226,46 +226,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Detect if there are multiple questions (numbered or separated by line breaks)
-    // Only consider it multiple questions if there are 2+ numbered items OR 2+ lines ending with ?
-    const numberedItems = (query.match(/^\s*\d+[\.)]\s+/gm) || []).length;
-    const questionLines = query.split('\n').filter(line => line.trim().endsWith('?')).length;
-    const hasMultipleQuestions = numberedItems >= 2 || questionLines >= 2;
-    const hasAttachments = attachments && attachments.length > 0;
-
-    let enhancedQuery = query;
-
-    // Build enhanced query with attachment and multiple questions handling
-    if (hasMultipleQuestions) {
-      // Count approximate number of questions
-      const questionCount = Math.max(numberedItems, questionLines);
-
-      // Calculate appropriate answer length based on question count
-      let answerLengthGuidance = '';
-      if (questionCount >= 5) {
-        answerLengthGuidance = 'CRITICAL LENGTH REQUIREMENT: Keep each answer to EXACTLY 2-3 SHORT paragraphs (about 150-200 words per answer). Be direct and concise - focus only on essential information.';
-      } else if (questionCount >= 3) {
-        answerLengthGuidance = 'LENGTH: Keep each answer to 3-4 paragraphs maximum to ensure all questions fit in the response.';
-      } else {
-        answerLengthGuidance = 'Provide thorough, detailed answers for each question.';
-      }
-
-      const instructions = `CRITICAL INSTRUCTIONS:
-
-MULTIPLE QUESTIONS: This prompt contains ${questionCount > 0 ? questionCount : 'multiple'} separate questions that MUST ALL be answered.
-   - YOU MUST ANSWER ALL ${questionCount > 0 ? questionCount : ''} QUESTIONS - do not stop after just one or two
-   - FORMAT: Start each answer with "Question ${questionCount > 0 ? '[NUMBER]' : '#'}:" as a clear header
-   - ${answerLengthGuidance}
-   - PRIORITY: It's better to answer ALL questions concisely than to answer only some questions in great detail
-   - Use clear line breaks between each question-answer pair
-
-Questions to answer:
-${query}
-
-REMINDER: Answer EVERY SINGLE question listed above. Keep answers concise but complete so ALL questions can be answered within the response limit.`;
-
-      enhancedQuery = instructions;
-    }
+    // No query augmentation - send queries exactly as typed
 
     const awsAccessKeyId = Deno.env.get("AWS_ACCESS_KEY_ID");
     const awsSecretAccessKey = Deno.env.get("AWS_SECRET_ACCESS_KEY");
@@ -305,7 +266,7 @@ REMINDER: Answer EVERY SINGLE question listed above. Keep answers concise but co
 
       const body: any = {
         input: {
-          text: enhancedQuery
+          text: query
         },
         retrieveAndGenerateConfiguration: {
           type: "KNOWLEDGE_BASE",
