@@ -227,7 +227,10 @@ Deno.serve(async (req: Request) => {
     }
 
     // Detect if there are multiple questions (numbered or separated by line breaks)
-    const hasMultipleQuestions = /^\s*\d+[\.)]\s+/m.test(query) || query.split('\n').filter(line => line.trim().endsWith('?')).length > 1;
+    // Only consider it multiple questions if there are 2+ numbered items OR 2+ lines ending with ?
+    const numberedItems = (query.match(/^\s*\d+[\.)]\s+/gm) || []).length;
+    const questionLines = query.split('\n').filter(line => line.trim().endsWith('?')).length;
+    const hasMultipleQuestions = numberedItems >= 2 || questionLines >= 2;
     const hasAttachments = attachments && attachments.length > 0;
 
     let enhancedQuery = query;
@@ -235,7 +238,7 @@ Deno.serve(async (req: Request) => {
     // Build enhanced query with attachment and multiple questions handling
     if (hasMultipleQuestions) {
       // Count approximate number of questions
-      const questionCount = (query.match(/^\s*\d+[\.)]\s+/gm) || []).length || query.split('\n').filter(line => line.trim().endsWith('?')).length;
+      const questionCount = Math.max(numberedItems, questionLines);
 
       // Calculate appropriate answer length based on question count
       let answerLengthGuidance = '';
