@@ -251,6 +251,57 @@ Deno.serve(async (req: Request) => {
     let answer = "";
     let citations: Array<{ text: string; location?: any }> = [];
 
+    // If attachments are provided, download and extract content
+    let attachmentContents: string[] = [];
+    if (attachments && attachments.length > 0) {
+      console.log('Processing attachments:', attachments);
+
+      for (const attachment of attachments) {
+        try {
+          // Get presigned URL to download the file
+          const s3Bucket = Deno.env.get("AWS_S3_BUCKET_NAME");
+          if (!s3Bucket) {
+            console.error('S3 bucket not configured');
+            continue;
+          }
+
+          // Generate presigned URL for download
+          const s3Endpoint = `https://${s3Bucket}.s3.${awsRegion}.amazonaws.com/${attachment.s3Key}`;
+          const s3Headers = await signRequest(
+            'GET',
+            s3Endpoint,
+            '',
+            awsRegion,
+            's3',
+            awsAccessKeyId,
+            awsSecretAccessKey
+          );
+
+          const s3Response = await fetch(s3Endpoint, {
+            method: 'GET',
+            headers: s3Headers,
+          });
+
+          if (s3Response.ok) {
+            const fileContent = await s3Response.text();
+            attachmentContents.push(`\n\n--- Content from ${attachment.name} ---\n${fileContent}\n--- End of ${attachment.name} ---\n`);
+            console.log(`Successfully retrieved content from ${attachment.name}`);
+          } else {
+            console.error(`Failed to download ${attachment.name}:`, await s3Response.text());
+          }
+        } catch (error) {
+          console.error(`Error processing attachment ${attachment.name}:`, error);
+        }
+      }
+    }
+
+    // Augment query with attachment contents if available
+    let finalQuery = query;
+    if (attachmentContents.length > 0) {
+      finalQuery = `${query}\n\nI have attached the following documents for reference:${attachmentContents.join('')}\n\nPlease answer the question based on both the knowledge base and the attached documents.`;
+      console.log('Augmented query with attachment contents');
+    }
+
     if (awsKnowledgeBaseId && useKnowledgeBase) {
       const endpoint = `https://bedrock-agent-runtime.${awsRegion}.amazonaws.com/retrieveAndGenerate`;
 
@@ -266,7 +317,7 @@ Deno.serve(async (req: Request) => {
 
       const body: any = {
         input: {
-          text: query
+          text: finalQuery
         },
         retrieveAndGenerateConfiguration: {
           type: "KNOWLEDGE_BASE",
@@ -364,7 +415,7 @@ Deno.serve(async (req: Request) => {
             role: "user",
             content: [
               {
-                text: query
+                text: finalQuery
               }
             ]
           }
