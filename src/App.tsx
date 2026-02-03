@@ -468,6 +468,10 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
+      console.log('DEBUG: Session exists?', !!session);
+      console.log('DEBUG: Token exists?', !!token);
+      console.log('DEBUG: Token length:', token?.length);
+
       if (!token) {
         throw new Error('No authentication token');
       }

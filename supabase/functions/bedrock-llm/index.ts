@@ -123,6 +123,9 @@ Deno.serve(async (req: Request) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
+    console.log("DEBUG: Auth header exists?", !!authHeader);
+    console.log("DEBUG: Auth header value:", authHeader?.substring(0, 20) + "...");
+
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: "Missing authorization header" }),
@@ -141,7 +144,11 @@ Deno.serve(async (req: Request) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const token = authHeader.replace("Bearer ", "");
+    console.log("DEBUG: Token length after Bearer removal:", token.length);
+
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    console.log("DEBUG: Auth error?", !!authError);
+    console.log("DEBUG: User exists?", !!user);
 
     if (authError || !user) {
       console.error("Auth error:", authError);
