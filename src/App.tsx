@@ -72,6 +72,7 @@ function isModelSupportedForKnowledgeBase(modelId: string): boolean {
 function App() {
   const { theme, toggleTheme } = useTheme();
   const [user, setUser] = useState<any>(null);
+  const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [improvingPrompt, setImprovingPrompt] = useState(false);
@@ -98,11 +99,13 @@ function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      setSession(session);
       setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      setSession(session);
     });
 
     return () => subscription.unsubscribe();
@@ -181,21 +184,18 @@ function App() {
     setWorkspaceContent('');
   };
 
-  const getValidSession = async () => {
-    const { data: { session }, error } = await supabase.auth.getSession();
-
-    if (error || !session) {
-      // Try to refresh the session
-      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-
-      if (refreshError || !refreshedSession) {
-        throw new Error('Session expired. Please log in again.');
-      }
-
-      return refreshedSession;
+  const getValidToken = async (): Promise<string> => {
+    if (!session) {
+      throw new Error('No active session. Please log in again.');
     }
 
-    return session;
+    const token = session.access_token;
+
+    if (!token) {
+      throw new Error('No authentication token available. Please log in again.');
+    }
+
+    return token;
   };
 
   const fetchModels = async () => {
@@ -203,12 +203,7 @@ function App() {
 
     setLoadingModels(true);
     try {
-      const session = await getValidSession();
-      const token = session.access_token;
-
-      if (!token) {
-        throw new Error('No authentication token');
-      }
+      const token = await getValidToken();
 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-foundation-models`,
@@ -260,12 +255,7 @@ function App() {
 
     setLoadingKnowledgeBases(true);
     try {
-      const session = await getValidSession();
-      const token = session.access_token;
-
-      if (!token) {
-        throw new Error('No authentication token');
-      }
+      const token = await getValidToken();
 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-knowledge-bases`,
@@ -363,6 +353,7 @@ function App() {
       setSelectedKnowledgeBase('');
       setUseKnowledgeBase(true);
       setUser(null);
+      setSession(null);
     }
   };
 
@@ -372,12 +363,7 @@ function App() {
     setImprovingPrompt(true);
 
     try {
-      const session = await getValidSession();
-      const token = session.access_token;
-
-      if (!token) {
-        throw new Error('No authentication token');
-      }
+      const token = await getValidToken();
 
       let systemPrompt = '';
 
@@ -478,12 +464,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
     setCurrentCitations([]);
 
     try {
-      const session = await getValidSession();
-      const token = session.access_token;
-
-      if (!token) {
-        throw new Error('No authentication token');
-      }
+      const token = await getValidToken();
 
       const selectedModelData = models.find(m => m.modelArn === selectedModel);
 

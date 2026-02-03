@@ -32,33 +32,17 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
     }
   };
 
-  const getValidSession = async () => {
-    const { data: { session }, error } = await supabase.auth.getSession();
-
-    if (error || !session) {
-      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-
-      if (refreshError || !refreshedSession) {
-        throw new Error('Session expired. Please log in again.');
-      }
-
-      return refreshedSession;
-    }
-
-    return session;
-  };
-
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setUploadingFile(true);
     try {
-      const session = await getValidSession();
-      const token = session.access_token;
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
 
       if (!token) {
-        throw new Error('No authentication token');
+        throw new Error('No authentication token. Please log in again.');
       }
 
       const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
