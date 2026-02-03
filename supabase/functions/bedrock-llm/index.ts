@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
-import pdf from "npm:pdf-parse@1.1.1";
+import { getDocument } from "npm:pdfjs-dist@4.0.379";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -305,12 +305,28 @@ Deno.serve(async (req: Request) => {
               try {
                 // Get the file as a buffer for PDF parsing
                 const arrayBuffer = await s3Response.arrayBuffer();
-                const buffer = new Uint8Array(arrayBuffer);
 
-                // Extract text from PDF
-                const pdfData = await pdf(buffer);
-                fileContent = pdfData.text;
-                console.log(`Successfully extracted text from PDF ${attachment.name} (${pdfData.numpages} pages)`);
+                // Extract text from PDF using pdfjs-dist
+                const loadingTask = getDocument({
+                  data: arrayBuffer,
+                  useSystemFonts: true,
+                });
+                const pdfDocument = await loadingTask.promise;
+                const numPages = pdfDocument.numPages;
+                console.log(`PDF ${attachment.name} has ${numPages} pages`);
+
+                const textParts: string[] = [];
+                for (let i = 1; i <= numPages; i++) {
+                  const page = await pdfDocument.getPage(i);
+                  const textContent = await page.getTextContent();
+                  const pageText = textContent.items
+                    .map((item: any) => item.str)
+                    .join(' ');
+                  textParts.push(pageText);
+                }
+
+                fileContent = textParts.join('\n\n');
+                console.log(`Successfully extracted text from PDF ${attachment.name} (${numPages} pages)`);
               } catch (pdfError) {
                 console.error(`Error parsing PDF ${attachment.name}:`, pdfError);
                 fileContent = `[Error: Could not extract text from PDF: ${pdfError.message}]`;
