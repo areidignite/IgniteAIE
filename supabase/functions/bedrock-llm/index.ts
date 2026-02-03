@@ -1,6 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
-import { getDocument } from "npm:pdfjs-dist@4.0.379";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -264,8 +263,16 @@ Deno.serve(async (req: Request) => {
     let answer = "";
     let citations: Array<{ text: string; location?: any }> = [];
 
-    // If attachments are provided, download and extract content
-    let attachmentContents: string[] = [];
+    // If attachments are provided, download them for use in the API call
+    interface ProcessedAttachment {
+      name: string;
+      format: string;
+      source: {
+        bytes: string;
+      };
+    }
+
+    let processedAttachments: ProcessedAttachment[] = [];
     if (attachments && attachments.length > 0) {
       console.log('Processing attachments:', attachments);
 
@@ -296,48 +303,30 @@ Deno.serve(async (req: Request) => {
           });
 
           if (s3Response.ok) {
-            let fileContent = "";
+            // Get the file as binary data
+            const arrayBuffer = await s3Response.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer);
 
-            // Check if file is a PDF
-            const isPDF = attachment.name.toLowerCase().endsWith('.pdf');
+            // Convert to base64
+            const base64 = btoa(String.fromCharCode(...bytes));
 
-            if (isPDF) {
-              try {
-                // Get the file as a buffer for PDF parsing
-                const arrayBuffer = await s3Response.arrayBuffer();
+            // Determine format
+            let format = 'pdf';
+            const extension = attachment.name.toLowerCase().split('.').pop();
+            if (extension === 'txt') format = 'txt';
+            else if (extension === 'md') format = 'md';
+            else if (extension === 'csv') format = 'csv';
+            else if (extension === 'doc' || extension === 'docx') format = 'doc';
 
-                // Extract text from PDF using pdfjs-dist
-                const loadingTask = getDocument({
-                  data: arrayBuffer,
-                  useSystemFonts: true,
-                });
-                const pdfDocument = await loadingTask.promise;
-                const numPages = pdfDocument.numPages;
-                console.log(`PDF ${attachment.name} has ${numPages} pages`);
-
-                const textParts: string[] = [];
-                for (let i = 1; i <= numPages; i++) {
-                  const page = await pdfDocument.getPage(i);
-                  const textContent = await page.getTextContent();
-                  const pageText = textContent.items
-                    .map((item: any) => item.str)
-                    .join(' ');
-                  textParts.push(pageText);
-                }
-
-                fileContent = textParts.join('\n\n');
-                console.log(`Successfully extracted text from PDF ${attachment.name} (${numPages} pages)`);
-              } catch (pdfError) {
-                console.error(`Error parsing PDF ${attachment.name}:`, pdfError);
-                fileContent = `[Error: Could not extract text from PDF: ${pdfError.message}]`;
+            processedAttachments.push({
+              name: attachment.name,
+              format: format,
+              source: {
+                bytes: base64
               }
-            } else {
-              // For non-PDF files, read as text
-              fileContent = await s3Response.text();
-            }
+            });
 
-            attachmentContents.push(`\n\n--- Content from ${attachment.name} ---\n${fileContent}\n--- End of ${attachment.name} ---\n`);
-            console.log(`Successfully retrieved content from ${attachment.name}`);
+            console.log(`Successfully processed attachment ${attachment.name} (${format})`);
           } else {
             console.error(`Failed to download ${attachment.name}:`, await s3Response.text());
           }
@@ -347,14 +336,8 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Augment query with attachment contents if available
-    let finalQuery = query;
-    if (attachmentContents.length > 0) {
-      finalQuery = `${query}\n\nI have attached the following documents for reference:${attachmentContents.join('')}\n\nPlease answer the question based on both the knowledge base and the attached documents.`;
-      console.log('Augmented query with attachment contents');
-    }
-
-    if (awsKnowledgeBaseId && useKnowledgeBase) {
+    if (awsKnowledgeBaseId && useKnowledgeBase && processedAttachments.length === 0) {
+      // Use knowledge base for queries without attachments
       const endpoint = `https://bedrock-agent-runtime.${awsRegion}.amazonaws.com/retrieveAndGenerate`;
 
       let finalModelArn: string;
@@ -369,7 +352,7 @@ Deno.serve(async (req: Request) => {
 
       const body: any = {
         input: {
-          text: finalQuery
+          text: query
         },
         retrieveAndGenerateConfiguration: {
           type: "KNOWLEDGE_BASE",
@@ -449,6 +432,7 @@ Deno.serve(async (req: Request) => {
         );
       }
     } else {
+      // Use Converse API for direct model calls (with or without attachments)
       let extractedModelId: string;
       if (inferenceProfileId) {
         extractedModelId = inferenceProfileId;
@@ -461,15 +445,34 @@ Deno.serve(async (req: Request) => {
 
       const endpoint = `https://bedrock-runtime.${awsRegion}.amazonaws.com/model/${extractedModelId}/converse`;
 
+      // Build content array with text and documents
+      const content: any[] = [
+        {
+          text: query
+        }
+      ];
+
+      // Add documents if attachments are present
+      if (processedAttachments.length > 0) {
+        console.log(`Adding ${processedAttachments.length} documents to the request`);
+        for (const attachment of processedAttachments) {
+          content.push({
+            document: {
+              name: attachment.name,
+              format: attachment.format,
+              source: {
+                bytes: attachment.source.bytes
+              }
+            }
+          });
+        }
+      }
+
       const body: any = {
         messages: [
           {
             role: "user",
-            content: [
-              {
-                text: finalQuery
-              }
-            ]
+            content: content
           }
         ],
         inferenceConfig: {
