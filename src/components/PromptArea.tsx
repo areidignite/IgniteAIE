@@ -209,6 +209,7 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
               Citations
             </span>
           </label>
+          {/* Hidden for version 2
           <input
             ref={fileInputRef}
             type="file"
@@ -235,6 +236,7 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
               </>
             )}
           </button>
+          */}
           <button
             type="submit"
             disabled={isLoading || isImprovingPrompt || uploadingFile || !prompt.trim()}
