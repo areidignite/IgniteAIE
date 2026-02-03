@@ -465,15 +465,20 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
     setCurrentCitations([]);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      // Refresh the session to ensure we have a valid token
+      const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+
+      console.log('DEBUG: Session refresh error?', !!sessionError);
+      console.log('DEBUG: Session refresh error message:', sessionError?.message);
+      console.log('DEBUG: Session exists after refresh?', !!session);
+      console.log('DEBUG: Token exists?', !!session?.access_token);
+      console.log('DEBUG: Token length:', session?.access_token?.length);
+      console.log('DEBUG: Token first 20 chars:', session?.access_token?.substring(0, 20));
+
       const token = session?.access_token;
 
-      console.log('DEBUG: Session exists?', !!session);
-      console.log('DEBUG: Token exists?', !!token);
-      console.log('DEBUG: Token length:', token?.length);
-
       if (!token) {
-        throw new Error('No authentication token');
+        throw new Error('No authentication token available. Please log out and log back in.');
       }
 
       const selectedModelData = models.find(m => m.modelArn === selectedModel);
@@ -516,17 +521,29 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
       );
 
       if (!response.ok) {
+        console.error('DEBUG: Response not OK. Status:', response.status);
+        console.error('DEBUG: Response status text:', response.statusText);
+
+        let errorData;
+        try {
+          errorData = await response.json();
+          console.error('DEBUG: Full error response:', errorData);
+        } catch (e) {
+          console.error('DEBUG: Could not parse error as JSON');
+          errorData = { message: response.statusText };
+        }
+
         if (response.status === 401) {
-          throw new Error('Authentication failed. Please log out and log back in to refresh your session.');
+          const details = errorData?.details || errorData?.message || 'Unknown auth error';
+          throw new Error(`Authentication failed: ${details}\n\nPlease log out and log back in to refresh your session.`);
         }
         if (response.status === 429) {
           throw new Error('AWS Bedrock rate limit exceeded. Please wait 30-60 seconds before trying again.');
         }
-        const errorData = await response.json();
-        console.error('Full error response:', errorData);
-        const errorMsg = errorData.details
+
+        const errorMsg = errorData?.details
           ? `${errorData.message}\n\nDetails: ${errorData.details}`
-          : errorData.message || 'Failed to generate content';
+          : errorData?.message || 'Failed to generate content';
         throw new Error(errorMsg);
       }
 
