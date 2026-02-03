@@ -139,19 +139,24 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Create Supabase client with user's authorization header
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: { Authorization: authHeader },
+      },
+    });
 
-    const token = authHeader.replace("Bearer ", "");
-    console.log("DEBUG: Token length after Bearer removal:", token.length);
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    // Validate the user token
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     console.log("DEBUG: Auth error?", !!authError);
+    console.log("DEBUG: Auth error message:", authError?.message);
     console.log("DEBUG: User exists?", !!user);
+    console.log("DEBUG: User ID:", user?.id);
 
     if (authError || !user) {
-      console.error("Auth error:", authError);
+      console.error("Auth validation failed:", authError);
       return new Response(
         JSON.stringify({
           code: 401,
