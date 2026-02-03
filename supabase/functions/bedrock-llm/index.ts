@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
+import pdf from "npm:pdf-parse@1.1.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -67,6 +68,16 @@ async function getSignatureKey(
   const kService = await hmacSha256(kRegion, serviceName);
   const kSigning = await hmacSha256(kService, 'aws4_request');
   return kSigning;
+}
+
+async function extractTextFromPDF(buffer: ArrayBuffer): Promise<string> {
+  try {
+    const data = await pdf(buffer);
+    return data.text;
+  } catch (error) {
+    console.error('Error extracting PDF text:', error);
+    throw new Error('Failed to extract text from PDF');
+  }
 }
 
 async function signRequest(
@@ -290,7 +301,19 @@ Deno.serve(async (req: Request) => {
           });
 
           if (s3Response.ok) {
-            const fileContent = await s3Response.text();
+            let fileContent: string;
+
+            // Check if file is a PDF
+            const isPDF = attachment.name.toLowerCase().endsWith('.pdf');
+
+            if (isPDF) {
+              console.log(`Extracting text from PDF: ${attachment.name}`);
+              const arrayBuffer = await s3Response.arrayBuffer();
+              fileContent = await extractTextFromPDF(arrayBuffer);
+            } else {
+              fileContent = await s3Response.text();
+            }
+
             attachmentContents.push(`\n\n--- Content from ${attachment.name} ---\n${fileContent}\n--- End of ${attachment.name} ---\n`);
             console.log(`Successfully retrieved content from ${attachment.name}`);
           } else {
