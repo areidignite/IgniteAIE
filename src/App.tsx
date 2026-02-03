@@ -184,26 +184,17 @@ function App() {
     setWorkspaceContent('');
   };
 
-  const getValidToken = async (): Promise<string> => {
-    if (!session) {
-      throw new Error('No active session. Please log in again.');
-    }
-
-    const token = session.access_token;
-
-    if (!token) {
-      throw new Error('No authentication token available. Please log in again.');
-    }
-
-    return token;
-  };
-
   const fetchModels = async () => {
     if (!user) return;
 
     setLoadingModels(true);
     try {
-      const token = await getValidToken();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        throw new Error('No authentication token');
+      }
 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-foundation-models`,
@@ -255,7 +246,12 @@ function App() {
 
     setLoadingKnowledgeBases(true);
     try {
-      const token = await getValidToken();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        throw new Error('No authentication token');
+      }
 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-knowledge-bases`,
@@ -363,7 +359,12 @@ function App() {
     setImprovingPrompt(true);
 
     try {
-      const token = await getValidToken();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        throw new Error('No authentication token');
+      }
 
       let systemPrompt = '';
 
@@ -464,7 +465,12 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
     setCurrentCitations([]);
 
     try {
-      const token = await getValidToken();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        throw new Error('No authentication token');
+      }
 
       const selectedModelData = models.find(m => m.modelArn === selectedModel);
 
