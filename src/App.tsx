@@ -181,13 +181,30 @@ function App() {
     setWorkspaceContent('');
   };
 
+  const getValidSession = async () => {
+    const { data: { session }, error } = await supabase.auth.getSession();
+
+    if (error || !session) {
+      // Try to refresh the session
+      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+
+      if (refreshError || !refreshedSession) {
+        throw new Error('Session expired. Please log in again.');
+      }
+
+      return refreshedSession;
+    }
+
+    return session;
+  };
+
   const fetchModels = async () => {
     if (!user) return;
 
     setLoadingModels(true);
     try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
+      const session = await getValidSession();
+      const token = session.access_token;
 
       if (!token) {
         throw new Error('No authentication token');
@@ -243,8 +260,8 @@ function App() {
 
     setLoadingKnowledgeBases(true);
     try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
+      const session = await getValidSession();
+      const token = session.access_token;
 
       if (!token) {
         throw new Error('No authentication token');
@@ -355,8 +372,8 @@ function App() {
     setImprovingPrompt(true);
 
     try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
+      const session = await getValidSession();
+      const token = session.access_token;
 
       if (!token) {
         throw new Error('No authentication token');
@@ -461,8 +478,8 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
     setCurrentCitations([]);
 
     try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
+      const session = await getValidSession();
+      const token = session.access_token;
 
       if (!token) {
         throw new Error('No authentication token');
