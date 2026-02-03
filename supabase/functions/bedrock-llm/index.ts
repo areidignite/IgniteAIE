@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
+import pdf from "npm:pdf-parse@1.1.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -295,7 +296,30 @@ Deno.serve(async (req: Request) => {
           });
 
           if (s3Response.ok) {
-            const fileContent = await s3Response.text();
+            let fileContent = "";
+
+            // Check if file is a PDF
+            const isPDF = attachment.name.toLowerCase().endsWith('.pdf');
+
+            if (isPDF) {
+              try {
+                // Get the file as a buffer for PDF parsing
+                const arrayBuffer = await s3Response.arrayBuffer();
+                const buffer = new Uint8Array(arrayBuffer);
+
+                // Extract text from PDF
+                const pdfData = await pdf(buffer);
+                fileContent = pdfData.text;
+                console.log(`Successfully extracted text from PDF ${attachment.name} (${pdfData.numpages} pages)`);
+              } catch (pdfError) {
+                console.error(`Error parsing PDF ${attachment.name}:`, pdfError);
+                fileContent = `[Error: Could not extract text from PDF: ${pdfError.message}]`;
+              }
+            } else {
+              // For non-PDF files, read as text
+              fileContent = await s3Response.text();
+            }
+
             attachmentContents.push(`\n\n--- Content from ${attachment.name} ---\n${fileContent}\n--- End of ${attachment.name} ---\n`);
             console.log(`Successfully retrieved content from ${attachment.name}`);
           } else {
