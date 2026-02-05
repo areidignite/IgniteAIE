@@ -350,9 +350,15 @@ Deno.serve(async (req: Request) => {
         finalModelArn = `arn:aws:bedrock:${awsRegion}::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0`;
       }
 
+      // Add instruction to extract names from source documents
+      let enhancedQuery = query;
+      if (query.toLowerCase().includes('candidate') || query.toLowerCase().includes('resume')) {
+        enhancedQuery = `${query}\n\nIMPORTANT: For each candidate you identify, extract their full name from the source document. Look for names at the beginning of documents or in header sections. Include the source document filename in your response. Present the information in a clear list format with: 1) Candidate Name, 2) Certifications, 3) Source Document.`;
+      }
+
       const body: any = {
         input: {
-          text: query
+          text: enhancedQuery
         },
         retrieveAndGenerateConfiguration: {
           type: "KNOWLEDGE_BASE",
@@ -361,7 +367,8 @@ Deno.serve(async (req: Request) => {
             modelArn: finalModelArn,
             retrievalConfiguration: {
               vectorSearchConfiguration: {
-                numberOfResults: 25
+                numberOfResults: 50,
+                overrideSearchType: "HYBRID"
               }
             },
             generationConfiguration: {
