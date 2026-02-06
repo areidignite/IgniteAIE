@@ -465,21 +465,33 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
     setCurrentCitations([]);
 
     try {
-      // Refresh the session to ensure we have a valid token
-      const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+      // Get current session and refresh if needed
+      let { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-      console.log('DEBUG: Session refresh error?', !!sessionError);
-      console.log('DEBUG: Session refresh error message:', sessionError?.message);
-      console.log('DEBUG: Session exists after refresh?', !!session);
-      console.log('DEBUG: Token exists?', !!session?.access_token);
-      console.log('DEBUG: Token length:', session?.access_token?.length);
-      console.log('DEBUG: Token first 20 chars:', session?.access_token?.substring(0, 20));
-
-      const token = session?.access_token;
-
-      if (!token) {
-        throw new Error('No authentication token available. Please log out and log back in.');
+      // If no session or error, try to refresh
+      if (!session || sessionError) {
+        const refreshResult = await supabase.auth.refreshSession();
+        session = refreshResult.data.session;
+        sessionError = refreshResult.error;
       }
+
+      // Validate we have a valid session
+      if (sessionError || !session?.access_token) {
+        console.error('Session validation failed:', sessionError);
+        setUser(null); // Clear user state to trigger re-login
+        throw new Error('Your session has expired. Please log in again.');
+      }
+
+      // Double-check token validity by verifying with getUser
+      const { data: { user: verifiedUser }, error: verifyError } = await supabase.auth.getUser(session.access_token);
+
+      if (verifyError || !verifiedUser) {
+        console.error('Token verification failed:', verifyError);
+        setUser(null); // Clear user state to trigger re-login
+        throw new Error('Your session is invalid. Please log in again.');
+      }
+
+      const token = session.access_token;
 
       const selectedModelData = models.find(m => m.modelArn === selectedModel);
 
@@ -535,7 +547,8 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
 
         if (response.status === 401) {
           const details = errorData?.details || errorData?.message || 'Unknown auth error';
-          throw new Error(`Authentication failed: ${details}\n\nPlease log out and log back in to refresh your session.`);
+          setUser(null); // Clear user state to trigger re-login
+          throw new Error(`Your session has expired. Please log in again.`);
         }
         if (response.status === 429) {
           throw new Error('AWS Bedrock rate limit exceeded. Please wait 30-60 seconds before trying again.');
