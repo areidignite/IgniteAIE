@@ -361,7 +361,7 @@ Deno.serve(async (req: Request) => {
       // Add instruction to extract names from source documents
       let enhancedQuery = query;
       if (query.toLowerCase().includes('candidate') || query.toLowerCase().includes('resume')) {
-        enhancedQuery = `${query}\n\nIMPORTANT: For each candidate you identify, extract their full name from the source document. Look for names at the beginning of documents or in header sections. Include the source document filename in your response. Present the information in a clear list format with: 1) Candidate Name, 2) Certifications, 3) Source Document.`;
+        enhancedQuery = `${query}\n\nIMPORTANT: For each candidate you identify, extract their full name from the source document. Look for names at the beginning of documents or in header sections. Present the information in a clear list format with: 1) Candidate Name, 2) Certifications. Do not try to provide document links - those will be added automatically.`;
       }
 
       const body: any = {
@@ -391,13 +391,12 @@ Deno.serve(async (req: Request) => {
         }
       };
 
-      if (includeCitations) {
-        body.retrieveAndGenerateConfiguration.knowledgeBaseConfiguration.orchestrationConfiguration = {
-          queryTransformationConfiguration: {
-            type: "QUERY_DECOMPOSITION"
-          }
-        };
-      }
+      // Always request citations for knowledge base queries
+      body.retrieveAndGenerateConfiguration.knowledgeBaseConfiguration.orchestrationConfiguration = {
+        queryTransformationConfiguration: {
+          type: "QUERY_DECOMPOSITION"
+        }
+      };
 
       const bodyString = JSON.stringify(body);
       const headers = await signRequest(
@@ -447,14 +446,89 @@ Deno.serve(async (req: Request) => {
       answer = bedrockData.output?.text || "No answer generated";
       console.log("DEBUG: Extracted answer:", answer);
 
-      if (includeCitations && bedrockData.citations) {
+      // Always extract citations from knowledge base responses
+      if (bedrockData.citations) {
+        const s3Bucket = Deno.env.get("AWS_S3_BUCKET_NAME");
+
         citations = bedrockData.citations.flatMap((citation: any) =>
-          (citation.retrievedReferences || []).map((ref: any) => ({
-            text: ref?.content?.text || "",
-            location: ref?.location
-          }))
+          (citation.retrievedReferences || []).map((ref: any) => {
+            const location = ref?.location;
+            let s3Uri = null;
+            let s3Key = null;
+            let presignedUrl = null;
+
+            // Extract S3 URI from location
+            if (location?.s3Location?.uri) {
+              s3Uri = location.s3Location.uri;
+              // Extract key from S3 URI (format: s3://bucket-name/key)
+              const uriMatch = s3Uri.match(/s3:\/\/[^\/]+\/(.+)/);
+              if (uriMatch) {
+                s3Key = uriMatch[1];
+              }
+            }
+
+            return {
+              text: ref?.content?.text || "",
+              location: location,
+              s3Uri: s3Uri,
+              s3Key: s3Key
+            };
+          })
         );
-        console.log("DEBUG: Extracted citations count:", citations.length);
+
+        console.log("DEBUG: Extracted citations with S3 info:", JSON.stringify(citations, null, 2));
+
+        // Generate presigned URLs for citations with S3 keys
+        if (s3Bucket) {
+          for (const citation of citations) {
+            if (citation.s3Key) {
+              try {
+                const s3Endpoint = `https://${s3Bucket}.s3.${awsRegion}.amazonaws.com/${citation.s3Key}`;
+
+                // Create presigned URL with 1 hour expiration
+                const expiresIn = 3600;
+                const expirationDate = new Date(Date.now() + expiresIn * 1000);
+                const amzDate = expirationDate.toISOString().replace(/[:-]|\.\d{3}/g, '');
+                const dateStamp = amzDate.slice(0, 8);
+
+                const params = new URLSearchParams({
+                  'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
+                  'X-Amz-Credential': `${awsAccessKeyId}/${dateStamp}/${awsRegion}/s3/aws4_request`,
+                  'X-Amz-Date': amzDate,
+                  'X-Amz-Expires': expiresIn.toString(),
+                  'X-Amz-SignedHeaders': 'host'
+                });
+
+                citation.presignedUrl = `${s3Endpoint}?${params.toString()}`;
+                console.log(`DEBUG: Generated presigned URL for ${citation.s3Key}`);
+              } catch (error) {
+                console.error(`Error generating presigned URL for ${citation.s3Key}:`, error);
+              }
+            }
+          }
+        }
+
+        // Enhance answer with clickable links if citations have S3 info
+        const citationsWithUrls = citations.filter((c: any) => c.s3Key);
+        if (citationsWithUrls.length > 0) {
+          answer += "\n\n---\n\n**Source Documents:**\n\n";
+
+          // Get unique documents
+          const uniqueDocs = new Map();
+          for (const citation of citationsWithUrls) {
+            const fileName = citation.s3Key.split('/').pop();
+            if (!uniqueDocs.has(fileName)) {
+              uniqueDocs.set(fileName, citation);
+            }
+          }
+
+          let docIndex = 1;
+          for (const [fileName, citation] of uniqueDocs) {
+            const displayUrl = citation.presignedUrl || citation.s3Uri || citation.s3Key;
+            answer += `${docIndex}. [${fileName}](${displayUrl})\n`;
+            docIndex++;
+          }
+        }
       }
     } else {
       // Use Converse API for direct model calls (with or without attachments)
