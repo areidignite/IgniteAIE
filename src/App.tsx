@@ -465,30 +465,13 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
     setCurrentCitations([]);
 
     try {
-      // Get current session and refresh if needed
-      let { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      // Get current session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-      // If no session or error, try to refresh
-      if (!session || sessionError) {
-        const refreshResult = await supabase.auth.refreshSession();
-        session = refreshResult.data.session;
-        sessionError = refreshResult.error;
-      }
-
-      // Validate we have a valid session
       if (sessionError || !session?.access_token) {
-        console.error('Session validation failed:', sessionError);
-        setUser(null); // Clear user state to trigger re-login
+        console.error('No valid session found:', sessionError);
+        setUser(null);
         throw new Error('Your session has expired. Please log in again.');
-      }
-
-      // Double-check token validity by verifying with getUser
-      const { data: { user: verifiedUser }, error: verifyError } = await supabase.auth.getUser(session.access_token);
-
-      if (verifyError || !verifiedUser) {
-        console.error('Token verification failed:', verifyError);
-        setUser(null); // Clear user state to trigger re-login
-        throw new Error('Your session is invalid. Please log in again.');
       }
 
       const token = session.access_token;

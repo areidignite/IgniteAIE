@@ -148,8 +148,11 @@ Deno.serve(async (req: Request) => {
       },
     });
 
-    // Validate the user token
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Extract JWT token from Authorization header
+    const jwt = authHeader.replace('Bearer ', '');
+
+    // Validate the user token by passing the JWT explicitly
+    const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
     console.log("DEBUG: Auth error?", !!authError);
     console.log("DEBUG: Auth error message:", authError?.message);
     console.log("DEBUG: User exists?", !!user);
