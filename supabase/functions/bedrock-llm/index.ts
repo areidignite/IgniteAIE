@@ -447,6 +447,11 @@ Deno.serve(async (req: Request) => {
       answer = bedrockData.output?.text || "No answer generated";
       console.log("DEBUG: Extracted answer:", answer);
 
+      if (answer.includes("unable to assist")) {
+        console.error("CONTENT FILTER TRIGGERED - Full response:", JSON.stringify(bedrockData, null, 2));
+        console.error("Query that triggered filter:", query);
+      }
+
       if (includeCitations && bedrockData.citations) {
         citations = bedrockData.citations.flatMap((citation: any) =>
           (citation.retrievedReferences || []).map((ref: any) => ({
