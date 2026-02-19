@@ -410,11 +410,17 @@ Deno.serve(async (req: Request) => {
         awsSecretAccessKey
       );
 
+      console.log("DEBUG: Sending request to Bedrock Knowledge Base");
+      console.log("DEBUG: Endpoint:", endpoint);
+      console.log("DEBUG: Request body:", JSON.stringify(body, null, 2));
+
       const bedrockResponse = await fetch(endpoint, {
         method: "POST",
         headers,
         body: bodyString,
       });
+
+      console.log("DEBUG: Bedrock response status:", bedrockResponse.status);
 
       if (!bedrockResponse.ok) {
         const errorText = await bedrockResponse.text();
@@ -436,7 +442,10 @@ Deno.serve(async (req: Request) => {
       }
 
       const bedrockData = await bedrockResponse.json();
+      console.log("DEBUG: Bedrock response data:", JSON.stringify(bedrockData, null, 2));
+
       answer = bedrockData.output?.text || "No answer generated";
+      console.log("DEBUG: Extracted answer:", answer);
 
       if (includeCitations && bedrockData.citations) {
         citations = bedrockData.citations.flatMap((citation: any) =>
@@ -445,6 +454,7 @@ Deno.serve(async (req: Request) => {
             location: ref?.location
           }))
         );
+        console.log("DEBUG: Extracted citations count:", citations.length);
       }
     } else {
       // Use Converse API for direct model calls (with or without attachments)
