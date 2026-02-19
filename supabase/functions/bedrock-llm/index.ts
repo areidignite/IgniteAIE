@@ -139,22 +139,26 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Create Supabase client with user's authorization header
+    // Create Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: { Authorization: authHeader },
-      },
-    });
+
+    console.log("DEBUG: Supabase URL:", supabaseUrl);
+    console.log("DEBUG: Has anon key:", !!supabaseAnonKey);
+    console.log("DEBUG: Auth header received:", authHeader.substring(0, 20) + "...");
 
     // Extract JWT token from Authorization header
     const jwt = authHeader.replace('Bearer ', '');
+    console.log("DEBUG: JWT extracted (first 20 chars):", jwt.substring(0, 20) + "...");
 
-    // Validate the user token by passing the JWT explicitly
+    // Create client and validate the user token
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
     const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
+
+    console.log("DEBUG: Auth validation completed");
     console.log("DEBUG: Auth error?", !!authError);
     console.log("DEBUG: Auth error message:", authError?.message);
+    console.log("DEBUG: Auth error name:", authError?.name);
     console.log("DEBUG: User exists?", !!user);
     console.log("DEBUG: User ID:", user?.id);
 
@@ -164,7 +168,8 @@ Deno.serve(async (req: Request) => {
         JSON.stringify({
           code: 401,
           message: "Invalid JWT",
-          details: authError?.message || "User not authenticated"
+          details: authError?.message || "User not authenticated",
+          errorName: authError?.name
         }),
         {
           status: 401,
