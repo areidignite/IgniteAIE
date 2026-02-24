@@ -364,6 +364,9 @@ function App() {
     if (!response.ok) {
       throw new Error(data.error || 'Failed to reset password');
     }
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password: newPassword });
+    if (error) throw error;
   };
 
   const handleSignOut = async () => {
