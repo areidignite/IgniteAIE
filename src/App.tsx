@@ -364,6 +364,9 @@ function App() {
     if (!response.ok) {
       throw new Error(data.error || 'Failed to reset password');
     }
+
+    // After successful password reset, sign in with the new password
+    await handleSignIn(email, newPassword);
   };
 
   const handleSignOut = async () => {
