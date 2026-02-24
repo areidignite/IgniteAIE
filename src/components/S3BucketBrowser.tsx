@@ -1,6 +1,6 @@
 import { FolderOpen, File, Download, RefreshCw, Upload, Trash2, RefreshCcw, X, Copy, ChevronRight, Home } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, getValidSession } from '../lib/supabase';
 import { RepositoryBrowser } from './RepositoryBrowser';
 
 interface S3Object {
@@ -43,8 +43,8 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
   const fetchObjects = async (resetList = false) => {
     setLoading(true);
     try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
+      const session = await getValidSession();
+      const token = session?.access_token;
 
       if (!token) {
         throw new Error('No authentication token');
@@ -177,8 +177,8 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
   const handleDownload = async (key: string) => {
     setLoadingUrl(key);
     try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
+      const session = await getValidSession();
+      const token = session?.access_token;
 
       if (!token) {
         throw new Error('No authentication token');
@@ -225,8 +225,8 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
     let failedFiles: string[] = [];
 
     try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
+      const session = await getValidSession();
+      const token = session?.access_token;
 
       if (!token) {
         throw new Error('No authentication token');
@@ -304,8 +304,8 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
 
     setDeletingKey(key);
     try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
+      const session = await getValidSession();
+      const token = session?.access_token;
 
       if (!token) {
         throw new Error('No authentication token');
@@ -349,8 +349,8 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
     ingestionJobId: string
   ) => {
     try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
+      const session = await getValidSession();
+      const token = session?.access_token;
 
       if (!token) {
         throw new Error('No authentication token');
@@ -424,8 +424,8 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
     setSyncing(true);
     setSyncStatus('Starting sync...');
     try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
+      const session = await getValidSession();
+      const token = session?.access_token;
 
       if (!token) {
         throw new Error('No authentication token');

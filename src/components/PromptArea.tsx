@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { Send, Loader2, Sparkles, Paperclip, X } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getValidSession } from '../lib/supabase';
 
 interface AttachedFile {
   name: string;
@@ -38,7 +38,7 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
 
     setUploadingFile(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const session = await getValidSession();
       const token = session?.access_token;
 
       if (!token) {

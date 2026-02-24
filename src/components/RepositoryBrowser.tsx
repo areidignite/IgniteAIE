@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { File, FolderOpen, Loader2, CheckSquare, Square, Copy, ChevronRight, Home, Eye, X } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getValidSession } from '../lib/supabase';
 
 interface S3Object {
   Key: string;
@@ -38,7 +38,7 @@ export function RepositoryBrowser({ onError, selectedKnowledgeBase, onClose }: R
   const loadRepositoryFiles = async () => {
     setLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const session = await getValidSession();
       if (!session) {
         throw new Error('No active session');
       }
@@ -209,7 +209,7 @@ export function RepositoryBrowser({ onError, selectedKnowledgeBase, onClose }: R
 
     setCopying(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const session = await getValidSession();
       if (!session) {
         throw new Error('No active session');
       }
@@ -273,7 +273,7 @@ export function RepositoryBrowser({ onError, selectedKnowledgeBase, onClose }: R
     setLoadingPreview(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const session = await getValidSession();
       if (!session) {
         throw new Error('No active session');
       }

@@ -1,6 +1,6 @@
 import { FileText, Copy, Check, BookOpen, ExternalLink, ChevronUp, ChevronDown } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, getValidSession } from '../lib/supabase';
 
 interface DocumentViewerProps {
   content: string;
@@ -44,7 +44,7 @@ export function DocumentViewer({ content, prompt, citations = [], usedKnowledgeB
         setLoadingUrls(prev => new Set(prev).add(s3Uri));
 
         try {
-          const { data: { session } } = await supabase.auth.getSession();
+          const session = await getValidSession();
           if (!session) return;
 
           const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-presigned-url`;

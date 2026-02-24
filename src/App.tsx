@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { FileText, LogOut, Info, Trash2, Sun, Moon } from 'lucide-react';
-import { supabase, type Document } from './lib/supabase';
+import { supabase, getValidSession, type Document } from './lib/supabase';
 import { AuthForm } from './components/AuthForm';
 import { UpdatePasswordForm } from './components/UpdatePasswordForm';
 import { PromptArea } from './components/PromptArea';
@@ -189,7 +189,7 @@ function App() {
 
     setLoadingModels(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const session = await getValidSession();
       const token = session?.access_token;
 
       if (!token) {
@@ -246,7 +246,7 @@ function App() {
 
     setLoadingKnowledgeBases(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const session = await getValidSession();
       const token = session?.access_token;
 
       if (!token) {
@@ -359,7 +359,7 @@ function App() {
     setImprovingPrompt(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const session = await getValidSession();
       const token = session?.access_token;
 
       if (!token) {
@@ -465,12 +465,13 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
     setCurrentCitations([]);
 
     try {
-      // Get current session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      // Get current session with refresh
+      const session = await getValidSession();
 
-      if (sessionError || !session?.access_token) {
-        console.error('No valid session found:', sessionError);
+      if (!session?.access_token) {
+        console.error('No valid session found');
         setUser(null);
+        setSession(null);
         throw new Error('Your session has expired. Please log in again.');
       }
 
