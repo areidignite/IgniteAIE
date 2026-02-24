@@ -31,6 +31,10 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    console.log('Verifying code for email:', email);
+    console.log('Looking for code:', code);
+    console.log('Current time:', new Date().toISOString());
+
     const { data: resetCodes, error: fetchError } = await supabase
       .from('password_reset_codes')
       .select('*')
@@ -42,10 +46,31 @@ Deno.serve(async (req: Request) => {
       .limit(1);
 
     if (fetchError) {
+      console.error('Database error fetching reset code:', fetchError);
       throw fetchError;
     }
 
+    console.log('Found reset codes:', resetCodes?.length || 0);
+
+    if (resetCodes && resetCodes.length > 0) {
+      console.log('Reset code details:', {
+        code: resetCodes[0].code,
+        expires_at: resetCodes[0].expires_at,
+        used: resetCodes[0].used,
+        created_at: resetCodes[0].created_at
+      });
+    }
+
     if (!resetCodes || resetCodes.length === 0) {
+      const { data: allCodesForEmail } = await supabase
+        .from('password_reset_codes')
+        .select('code, used, expires_at, created_at')
+        .eq('email', email)
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      console.error('No valid reset code found. Recent codes for this email:', allCodesForEmail);
+
       return new Response(
         JSON.stringify({ error: 'Invalid or expired code' }),
         {
