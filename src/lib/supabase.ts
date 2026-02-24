@@ -9,6 +9,35 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'loaded' : 'missing');
 }
 
+// In-memory storage fallback for when localStorage is blocked
+class MemoryStorage {
+  private storage: Map<string, string> = new Map();
+
+  getItem(key: string): string | null {
+    return this.storage.get(key) || null;
+  }
+
+  setItem(key: string, value: string): void {
+    this.storage.set(key, value);
+  }
+
+  removeItem(key: string): void {
+    this.storage.delete(key);
+  }
+}
+
+// Try to detect if localStorage is available
+let storageAdapter: Storage | MemoryStorage;
+try {
+  localStorage.setItem('__test__', 'test');
+  localStorage.removeItem('__test__');
+  storageAdapter = window.localStorage;
+  console.log('Using localStorage for session storage');
+} catch (e) {
+  console.warn('localStorage blocked, using in-memory storage (sessions will not persist across page reloads)');
+  storageAdapter = new MemoryStorage();
+}
+
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
   supabaseAnonKey || 'placeholder-key',
@@ -17,9 +46,8 @@ export const supabase = createClient(
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: true,
-      storage: window.localStorage,
-      storageKey: 'supabase.auth.token',
-      flowType: 'pkce'
+      storage: storageAdapter as Storage,
+      storageKey: 'supabase.auth.token'
     }
   }
 );
@@ -30,56 +58,54 @@ export async function getValidSession() {
     // First, try to get the current session
     const { data: { session }, error } = await supabase.auth.getSession();
 
-    if (error) {
-      console.error('Error getting session:', error);
-      // Try to refresh the session
-      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-
-      if (refreshError || !refreshedSession) {
-        console.error('Error refreshing session:', refreshError);
-        return null;
-      }
-
-      return refreshedSession;
-    }
-
-    // If no session, return null
-    if (!session) {
+    // If there's an error or no session, return null
+    if (error || !session) {
+      console.log('No valid session found:', error?.message || 'session is null');
       return null;
     }
 
-    // Check if token is expired or about to expire (within 5 minutes)
+    // Check if token is expired or about to expire (within 60 seconds)
     const expiresAt = session.expires_at;
-    const now = Math.floor(Date.now() / 1000);
-    const bufferTime = 300; // 5 minutes buffer
+    if (!expiresAt) {
+      return session;
+    }
 
-    if (expiresAt && expiresAt - now < bufferTime) {
-      console.log('Token expiring soon, refreshing...');
+    const now = Math.floor(Date.now() / 1000);
+    const timeUntilExpiry = expiresAt - now;
+
+    // If token is already expired, return null
+    if (timeUntilExpiry <= 0) {
+      console.log('Token expired, attempting refresh...');
       const { data: { session: newSession }, error: refreshError } = await supabase.auth.refreshSession();
 
       if (refreshError || !newSession) {
-        console.error('Error refreshing session:', refreshError);
-        // If refresh fails, try to use the current session if it's still technically valid
-        if (expiresAt && expiresAt > now) {
-          console.log('Using current session as fallback');
-          return session;
-        }
+        console.error('Failed to refresh expired session:', refreshError?.message);
         return null;
       }
 
+      console.log('Session refreshed successfully');
       return newSession;
     }
 
+    // If token expires soon (within 60 seconds), proactively refresh
+    if (timeUntilExpiry < 60) {
+      console.log(`Token expiring in ${timeUntilExpiry}s, refreshing proactively...`);
+      const { data: { session: newSession }, error: refreshError } = await supabase.auth.refreshSession();
+
+      if (refreshError || !newSession) {
+        console.warn('Proactive refresh failed, using existing session:', refreshError?.message);
+        return session; // Use current session as fallback
+      }
+
+      console.log('Session refreshed proactively');
+      return newSession;
+    }
+
+    // Token is valid and not expiring soon
     return session;
   } catch (error) {
     console.error('Unexpected error in getValidSession:', error);
-    // As a last resort, try to get the session without any checks
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      return session;
-    } catch {
-      return null;
-    }
+    return null;
   }
 }
 

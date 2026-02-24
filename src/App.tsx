@@ -677,9 +677,8 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       {storageBlocked && (
         <div className="bg-amber-500 text-white px-6 py-3 text-center text-sm">
-          <strong>Browser Storage Blocked:</strong> Your browser's tracking prevention is blocking session storage.
-          Please disable tracking prevention for this site or use a different browser (Chrome/Firefox recommended).
-          In Safari: Settings → Privacy → uncheck "Prevent cross-site tracking" or add this site to exceptions.
+          <strong>Warning:</strong> Browser storage is blocked by tracking prevention. The app will work, but you'll need to log in again if you refresh the page.
+          For the best experience, disable tracking prevention for this site or use Chrome/Firefox.
         </div>
       )}
       <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
