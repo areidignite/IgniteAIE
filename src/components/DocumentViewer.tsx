@@ -181,27 +181,32 @@ export function DocumentViewer({ content, prompt, citations = [], usedKnowledgeB
                   >
                     <p className="text-amber-900 dark:text-amber-200 mb-2">{citation.text}</p>
 
-                    {s3Uri && (
-                      <div className="mt-2 space-y-1">
-                        <p className="text-xs text-slate-600 font-mono break-all">
-                          Source: {s3Uri}
-                        </p>
-                        {isLoadingUrl && (
-                          <p className="text-xs text-slate-500">Loading download link...</p>
-                        )}
-                        {presignedUrl && (
-                          <a
-                            href={presignedUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline"
-                          >
-                            <ExternalLink className="w-3 h-3" />
-                            <span>Download/View File</span>
-                          </a>
-                        )}
-                      </div>
-                    )}
+                    {s3Uri && (() => {
+                      const parts = s3Uri.split('/');
+                      const filename = decodeURIComponent(parts[parts.length - 1] || s3Uri);
+                      return (
+                        <div className="mt-2 flex items-center gap-3 flex-wrap">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
+                            <FileText className="w-3 h-3" />
+                            {filename}
+                          </span>
+                          {isLoadingUrl && (
+                            <span className="text-xs text-slate-500 dark:text-slate-400">Loading link...</span>
+                          )}
+                          {presignedUrl && (
+                            <a
+                              href={presignedUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              <span>Open File</span>
+                            </a>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {webUrl && (
                       <div className="mt-2">

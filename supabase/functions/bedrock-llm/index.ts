@@ -452,14 +452,47 @@ Deno.serve(async (req: Request) => {
         console.error("Query that triggered filter:", query);
       }
 
-      if (includeCitations && bedrockData.citations) {
-        citations = bedrockData.citations.flatMap((citation: any) =>
-          (citation.retrievedReferences || []).map((ref: any) => ({
-            text: ref?.content?.text || "",
-            location: ref?.location
-          }))
-        );
+      if (bedrockData.citations) {
+        const allRefs: Array<{ text: string; location?: any }> = [];
+        const filenameMap = new Map<string, string>();
+
+        for (const citation of bedrockData.citations) {
+          for (const ref of (citation.retrievedReferences || [])) {
+            const s3Uri = ref?.location?.s3Location?.uri;
+            let filename = '';
+            if (s3Uri) {
+              const parts = s3Uri.split('/');
+              filename = decodeURIComponent(parts[parts.length - 1] || s3Uri);
+              if (!filenameMap.has(s3Uri)) {
+                filenameMap.set(s3Uri, filename);
+              }
+            }
+
+            allRefs.push({
+              text: ref?.content?.text || "",
+              location: ref?.location
+            });
+          }
+        }
+
+        citations = allRefs;
+
+        const uniqueFiles = Array.from(filenameMap.entries());
+        if (uniqueFiles.length > 0) {
+          answer = answer.replace(
+            /Source\s+Document[s]?\s*[:.]?\s*(\d+)/gi,
+            (match: string, num: string) => {
+              const idx = parseInt(num, 10) - 1;
+              if (idx >= 0 && idx < uniqueFiles.length) {
+                return `Source: ${uniqueFiles[idx][1]}`;
+              }
+              return match;
+            }
+          );
+        }
+
         console.log("DEBUG: Extracted citations count:", citations.length);
+        console.log("DEBUG: Unique source files:", uniqueFiles.map(f => f[1]));
       }
     } else {
       // Use Converse API for direct model calls (with or without attachments)
