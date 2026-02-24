@@ -29,7 +29,7 @@ Deno.serve(async (req: Request) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const resendApiKey = Deno.env.get('RESEND_API_KEY')!;
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
@@ -111,55 +111,48 @@ Deno.serve(async (req: Request) => {
       </html>
     `;
 
-    console.log('Attempting to send email to:', email);
-    console.log('Using from address: avo@avoreid.com');
-    console.log('Reset code:', code);
-
-    const emailResponse = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${resendApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'avo@avoreid.com',
-        to: email,
-        subject: 'Your Password Reset Code',
-        html: emailHtml,
-      }),
-    });
-
-    const emailResult = await emailResponse.json();
-
-    console.log('Resend API response status:', emailResponse.status);
-    console.log('Resend API response body:', JSON.stringify(emailResult));
-
-    if (!emailResponse.ok) {
-      console.error('Resend API error - Full details:', {
-        status: emailResponse.status,
-        statusText: emailResponse.statusText,
-        body: emailResult
-      });
-
-      return new Response(
-        JSON.stringify({
-          error: `Email delivery failed: ${emailResult.message || JSON.stringify(emailResult)}`,
-          details: emailResult,
-          resetCode: code
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    console.log('Email sent successfully. Resend ID:', emailResult.id);
     console.log('='.repeat(50));
     console.log('PASSWORD RESET CODE:', code);
     console.log('FOR EMAIL:', email);
     console.log('EXPIRES AT:', expiresAt.toISOString());
     console.log('='.repeat(50));
+
+    if (resendApiKey) {
+      console.log('Attempting to send email to:', email);
+      console.log('Using from address: avo@avoreid.com');
+
+      const emailResponse = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'avo@avoreid.com',
+          to: email,
+          subject: 'Your Password Reset Code',
+          html: emailHtml,
+        }),
+      });
+
+      const emailResult = await emailResponse.json();
+
+      console.log('Resend API response status:', emailResponse.status);
+      console.log('Resend API response body:', JSON.stringify(emailResult));
+
+      if (!emailResponse.ok) {
+        console.error('Resend API error - Full details:', {
+          status: emailResponse.status,
+          statusText: emailResponse.statusText,
+          body: emailResult
+        });
+        console.log('Email failed, but continuing with code generation');
+      } else {
+        console.log('Email sent successfully. Resend ID:', emailResult.id);
+      }
+    } else {
+      console.log('RESEND_API_KEY not configured - skipping email send (dev mode)');
+    }
 
     return new Response(
       JSON.stringify({
