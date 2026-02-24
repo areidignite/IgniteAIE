@@ -266,9 +266,7 @@ export function AuthForm({ onSignIn, onSignUp, onResetPassword }: AuthFormProps)
               {loading
                 ? 'Please wait...'
                 : isResetPassword
-                ? showCodeInput
-                  ? 'Reset Password'
-                  : 'Send Code'
+                ? 'Reset Password'
                 : isSignUp
                 ? 'Create Account'
                 : 'Sign In'}
