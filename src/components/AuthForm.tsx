@@ -10,7 +10,6 @@ interface AuthFormProps {
 export function AuthForm({ onSignIn, onSignUp, onResetPassword }: AuthFormProps) {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isResetPassword, setIsResetPassword] = useState(false);
-  const [showCodeInput, setShowCodeInput] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [resetCode, setResetCode] = useState('');
@@ -19,6 +18,7 @@ export function AuthForm({ onSignIn, onSignUp, onResetPassword }: AuthFormProps)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [displayedCode, setDisplayedCode] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,52 +28,23 @@ export function AuthForm({ onSignIn, onSignUp, onResetPassword }: AuthFormProps)
 
     try {
       if (isResetPassword) {
-        if (!showCodeInput) {
-          const response = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-reset-code`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-              },
-              body: JSON.stringify({ email }),
-            }
-          );
-
-          const data = await response.json();
-
-          if (!response.ok) {
-            throw new Error(data.error || 'Failed to send reset code');
-          }
-
-          const debugMsg = data.debugCode
-            ? `Reset code sent to ${email}! (Code: ${data.debugCode})`
-            : `Reset code sent to ${email}! Check your email.`;
-
-          setSuccessMessage(debugMsg);
-          setShowCodeInput(true);
-        } else {
-          if (newPassword !== confirmPassword) {
-            throw new Error('Passwords do not match');
-          }
-
-          if (newPassword.length < 6) {
-            throw new Error('Password must be at least 6 characters');
-          }
-
-          await onResetPassword(email, resetCode, newPassword);
-          setSuccessMessage('Password updated successfully!');
-          setTimeout(() => {
-            setIsResetPassword(false);
-            setShowCodeInput(false);
-            setEmail('');
-            setResetCode('');
-            setNewPassword('');
-            setConfirmPassword('');
-            setSuccessMessage('');
-          }, 2000);
+        if (newPassword !== confirmPassword) {
+          throw new Error('Passwords do not match');
         }
+
+        if (newPassword.length < 6) {
+          throw new Error('Password must be at least 6 characters');
+        }
+
+        await onResetPassword(email, resetCode, newPassword);
+        setSuccessMessage('Password reset successfully! You can now sign in.');
+        setTimeout(() => {
+          setIsResetPassword(false);
+          setResetCode('');
+          setNewPassword('');
+          setConfirmPassword('');
+          setSuccessMessage('');
+        }, 2000);
       } else if (isSignUp) {
         await onSignUp(email, password);
       } else {
@@ -88,13 +59,49 @@ export function AuthForm({ onSignIn, onSignUp, onResetPassword }: AuthFormProps)
 
   const handleBackToSignIn = () => {
     setIsResetPassword(false);
-    setShowCodeInput(false);
     setError('');
     setSuccessMessage('');
-    setEmail('');
     setResetCode('');
     setNewPassword('');
     setConfirmPassword('');
+    setDisplayedCode('');
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError('Please enter your email first');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-reset-code`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({ email }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate reset code');
+      }
+
+      setDisplayedCode(data.debugCode || '');
+      setIsResetPassword(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate reset code');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -137,18 +144,22 @@ export function AuthForm({ onSignIn, onSignUp, onResetPassword }: AuthFormProps)
           {isResetPassword && (
             <div className="mb-6">
               <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100 mb-2">
-                {showCodeInput ? 'Enter Reset Code' : 'Reset Password'}
+                Reset Password
               </h2>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
-                {showCodeInput
-                  ? 'Enter the 4-digit code sent to your email'
-                  : 'Enter your email to receive a 4-digit reset code'}
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
+                Enter the code below and your new password
               </p>
+              {displayedCode && (
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <p className="text-sm text-blue-800 dark:text-blue-300 mb-1 font-medium">Your Reset Code:</p>
+                  <p className="text-3xl font-mono font-bold text-blue-600 dark:text-blue-400 tracking-widest text-center">{displayedCode}</p>
+                </div>
+              )}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {isResetPassword && showCodeInput ? (
+            {isResetPassword ? (
               <>
                 <div>
                   <label htmlFor="code" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
@@ -275,12 +286,10 @@ export function AuthForm({ onSignIn, onSignUp, onResetPassword }: AuthFormProps)
               </button>
             ) : (
               <button
-                onClick={() => {
-                  setIsResetPassword(true);
-                  setError('');
-                  setSuccessMessage('');
-                }}
-                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={loading || !email}
+                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium disabled:text-slate-400 disabled:cursor-not-allowed"
               >
                 Forgot Password?
               </button>
