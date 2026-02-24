@@ -112,36 +112,25 @@ function App() {
 
     checkStorage();
 
-    // Initialize session with refresh attempt
-    const initSession = async () => {
-      try {
-        const session = await getValidSession();
-        setUser(session?.user ?? null);
-        setSession(session);
-      } catch (error) {
-        console.error('Error initializing session:', error);
-        setUser(null);
-        setSession(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initSession();
-
+    // Initialize session using onAuthStateChange (recommended approach)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event);
+      console.log('Session user:', session?.user?.email || 'no user');
+      console.log('Session token (first 20 chars):', session?.access_token?.substring(0, 20) || 'no token');
 
       if (event === 'SIGNED_OUT') {
         setUser(null);
         setSession(null);
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
         setUser(session?.user ?? null);
         setSession(session);
       } else if (event === 'USER_UPDATED') {
         setUser(session?.user ?? null);
         setSession(session);
       }
+
+      // Mark loading as complete after first event
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
