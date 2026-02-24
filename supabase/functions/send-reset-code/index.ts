@@ -39,13 +39,11 @@ Deno.serve(async (req: Request) => {
     }
 
     const user = userData.users.find(u => u.email === email);
-    const code = Math.floor(1000 + Math.random() * 9000).toString();
 
     if (!user) {
       return new Response(
         JSON.stringify({
-          message: 'If an account exists, a reset code has been sent',
-          debugCode: code
+          message: 'If an account exists, a reset code has been sent'
         }),
         {
           status: 200,
@@ -53,6 +51,8 @@ Deno.serve(async (req: Request) => {
         }
       );
     }
+
+    const code = Math.floor(1000 + Math.random() * 9000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     await supabase
