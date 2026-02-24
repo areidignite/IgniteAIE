@@ -95,17 +95,53 @@ function App() {
   const [showInfoDialog, setShowInfoDialog] = useState(false);
   const [activeTab, setActiveTab] = useState<'documents' | 's3-browser'>('documents');
   const [prompt, setPrompt] = useState('');
+  const [storageBlocked, setStorageBlocked] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setSession(session);
-      setLoading(false);
-    });
+    // Check for storage access
+    const checkStorage = () => {
+      try {
+        localStorage.setItem('test', 'test');
+        localStorage.removeItem('test');
+        setStorageBlocked(false);
+      } catch (e) {
+        console.error('localStorage blocked:', e);
+        setStorageBlocked(true);
+      }
+    };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      setSession(session);
+    checkStorage();
+
+    // Initialize session with refresh attempt
+    const initSession = async () => {
+      try {
+        const session = await getValidSession();
+        setUser(session?.user ?? null);
+        setSession(session);
+      } catch (error) {
+        console.error('Error initializing session:', error);
+        setUser(null);
+        setSession(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event);
+
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setSession(null);
+      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        setUser(session?.user ?? null);
+        setSession(session);
+      } else if (event === 'USER_UPDATED') {
+        setUser(session?.user ?? null);
+        setSession(session);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -639,6 +675,13 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+      {storageBlocked && (
+        <div className="bg-amber-500 text-white px-6 py-3 text-center text-sm">
+          <strong>Browser Storage Blocked:</strong> Your browser's tracking prevention is blocking session storage.
+          Please disable tracking prevention for this site or use a different browser (Chrome/Firefox recommended).
+          In Safari: Settings → Privacy → uncheck "Prevent cross-site tracking" or add this site to exceptions.
+        </div>
+      )}
       <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="mx-auto px-6 py-4 flex items-center gap-6">
           <div className="space-y-3">
