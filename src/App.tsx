@@ -506,6 +506,8 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
 
       if (!session?.access_token) {
         console.error('No valid session found');
+        // Force sign out to clear invalid session
+        await supabase.auth.signOut();
         setUser(null);
         setSession(null);
         throw new Error('Your session has expired. Please log in again.');
