@@ -493,11 +493,9 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
     setCurrentCitations([]);
 
     try {
-      // Get current session with refresh
-      const session = await getValidSession();
-
+      // Use the session from state (already managed by onAuthStateChange)
       if (!session?.access_token) {
-        console.error('No valid session found');
+        console.error('No valid session found in state');
         // Force sign out to clear invalid session
         await supabase.auth.signOut();
         setUser(null);
@@ -506,6 +504,9 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
       }
 
       const token = session.access_token;
+      console.log('Using token from session state (first 20 chars):', token.substring(0, 20));
+      console.log('Session user:', session.user?.email);
+      console.log('Token expires at:', new Date(session.expires_at! * 1000).toISOString());
 
       const selectedModelData = models.find(m => m.modelArn === selectedModel);
 
@@ -515,13 +516,6 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
 
       console.log('Selected model:', selectedModel);
       console.log('Selected model data:', selectedModelData);
-      console.log('Sending to API:', {
-        modelArn: selectedModel,
-        inferenceProfileId: selectedModelData?.inferenceProfileId,
-        inferenceProfileArn: selectedModelData?.inferenceProfileArn,
-        attachments,
-        includeCitations
-      });
 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bedrock-llm`,
