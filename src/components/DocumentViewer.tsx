@@ -1,4 +1,4 @@
-import { FileText, Copy, Check, BookOpen, ExternalLink, ChevronUp, ChevronDown } from 'lucide-react';
+import { FileText, Copy, Check, Link2, ExternalLink, ChevronUp, ChevronDown } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase, getValidSession } from '../lib/supabase';
 
@@ -161,74 +161,78 @@ export function DocumentViewer({ content, prompt, citations = [], usedKnowledgeB
           </div>
         </div>
 
-        {citations.length > 0 && (
-          <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
-            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-medium mb-3">
-              <BookOpen className="w-5 h-5" />
-              <span>Citations</span>
-            </div>
-            <div className="space-y-2">
-              {citations.map((citation, index) => {
-                const s3Uri = citation.location?.s3Location?.uri;
-                const webUrl = citation.location?.webLocation?.url;
-                const presignedUrl = s3Uri ? presignedUrls[s3Uri] : null;
-                const isLoadingUrl = s3Uri ? loadingUrls.has(s3Uri) : false;
+        {citations.length > 0 && (() => {
+          const uniqueLinks = new Map<string, { uri: string; filename: string; type: 's3' | 'web' }>();
+          for (const citation of citations) {
+            const s3Uri = citation.location?.s3Location?.uri;
+            const webUrl = citation.location?.webLocation?.url;
+            if (s3Uri && !uniqueLinks.has(s3Uri)) {
+              const parts = s3Uri.split('/');
+              uniqueLinks.set(s3Uri, {
+                uri: s3Uri,
+                filename: decodeURIComponent(parts[parts.length - 1] || s3Uri),
+                type: 's3',
+              });
+            }
+            if (webUrl && !uniqueLinks.has(webUrl)) {
+              uniqueLinks.set(webUrl, { uri: webUrl, filename: webUrl, type: 'web' });
+            }
+          }
+          const links = Array.from(uniqueLinks.values());
+          if (links.length === 0) return null;
 
-                return (
-                  <div
-                    key={index}
-                    className="p-3 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-400 dark:border-amber-600 rounded text-sm"
-                  >
-                    <p className="text-amber-900 dark:text-amber-200 mb-2">{citation.text}</p>
+          return (
+            <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-medium mb-3">
+                <Link2 className="w-5 h-5" />
+                <span>Document Links</span>
+              </div>
+              <div className="space-y-2">
+                {links.map((link) => {
+                  const presignedUrl = link.type === 's3' ? presignedUrls[link.uri] : null;
+                  const isLoadingUrl = link.type === 's3' ? loadingUrls.has(link.uri) : false;
 
-                    {s3Uri && (() => {
-                      const parts = s3Uri.split('/');
-                      const filename = decodeURIComponent(parts[parts.length - 1] || s3Uri);
-                      return (
-                        <div className="mt-2 flex items-center gap-3 flex-wrap">
-                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
-                            <FileText className="w-3 h-3" />
-                            {filename}
-                          </span>
-                          {isLoadingUrl && (
-                            <span className="text-xs text-slate-500 dark:text-slate-400">Loading link...</span>
-                          )}
-                          {presignedUrl && (
-                            <a
-                              href={presignedUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                              <span>Open File</span>
-                            </a>
-                          )}
-                        </div>
-                      );
-                    })()}
-
-                    {webUrl && (
-                      <div className="mt-2">
+                  return (
+                    <div
+                      key={link.uri}
+                      className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg"
+                    >
+                      <FileText className="w-4 h-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate flex-1" title={link.filename}>
+                        {link.filename}
+                      </span>
+                      {link.type === 's3' && isLoadingUrl && (
+                        <span className="text-xs text-slate-400 dark:text-slate-500 flex-shrink-0">Loading...</span>
+                      )}
+                      {link.type === 's3' && presignedUrl && (
                         <a
-                          href={webUrl}
+                          href={presignedUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline flex-shrink-0"
                         >
-                          <ExternalLink className="w-3 h-3" />
-                          <span className="truncate max-w-xs" title={webUrl}>
-                            {webUrl}
-                          </span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          Open
                         </a>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                      )}
+                      {link.type === 'web' && (
+                        <a
+                          href={link.uri}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline flex-shrink-0"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          Open
+                        </a>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );

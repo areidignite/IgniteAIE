@@ -206,7 +206,7 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
               className="w-4 h-4 text-blue-600 border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500 focus:ring-2 disabled:cursor-not-allowed"
             />
             <span className={`text-sm font-medium ${isLoading || isImprovingPrompt || uploadingFile ? 'text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-300'}`}>
-              Citations
+              Document Links
             </span>
           </label>
           {/* Hidden for version 2
