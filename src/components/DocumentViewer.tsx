@@ -59,8 +59,11 @@ export function DocumentViewer({ content, prompt, citations = [], usedKnowledgeB
           });
 
           if (response.ok) {
-            const { presignedUrl } = await response.json();
-            setPresignedUrls(prev => ({ ...prev, [s3Uri]: presignedUrl }));
+            const data = await response.json();
+            const presignedUrl = data.presignedUrl || data.url;
+            if (presignedUrl) {
+              setPresignedUrls(prev => ({ ...prev, [s3Uri]: presignedUrl }));
+            }
           }
         } catch (error) {
           console.error('Error fetching presigned URL:', error);
