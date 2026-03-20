@@ -414,9 +414,13 @@ User question: $query$`
                 type: "QUERY_DECOMPOSITION"
               },
               promptTemplate: {
-                textPromptTemplate: `Break down the following query into simpler sub-queries if needed to search the knowledge base effectively. If the query is already simple enough, use it as-is.
+                textPromptTemplate: `You are a helpful assistant that answers questions using the provided knowledge base. Use the conversation history and search results to provide accurate, thorough answers.
 
-Query: $query$`
+$conversation_history$
+
+$output_format_instructions$
+
+User question: $query$`
               }
             }
           }
