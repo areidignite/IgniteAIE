@@ -51,59 +51,26 @@ export const supabase = createClient(
   }
 );
 
-// Helper function to get a valid session, refreshing if necessary
 export async function getValidSession() {
   try {
-    // First, try to get the current session
     const { data: { session }, error } = await supabase.auth.getSession();
-
-    // If there's an error or no session, return null
     if (error || !session) {
-      console.log('No valid session found:', error?.message || 'session is null');
       return null;
     }
 
-    // Check if token is expired or about to expire (within 60 seconds)
-    const expiresAt = session.expires_at;
-    if (!expiresAt) {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (!userError && user) {
       return session;
     }
 
-    const now = Math.floor(Date.now() / 1000);
-    const timeUntilExpiry = expiresAt - now;
-
-    // If token is already expired, return null
-    if (timeUntilExpiry <= 0) {
-      console.log('Token expired, attempting refresh...');
-      const { data: { session: newSession }, error: refreshError } = await supabase.auth.refreshSession();
-
-      if (refreshError || !newSession) {
-        console.error('Failed to refresh expired session:', refreshError?.message);
-        return null;
-      }
-
-      console.log('Session refreshed successfully');
-      return newSession;
+    const { data: { session: refreshed }, error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError || !refreshed) {
+      return null;
     }
 
-    // If token expires soon (within 60 seconds), proactively refresh
-    if (timeUntilExpiry < 60) {
-      console.log(`Token expiring in ${timeUntilExpiry}s, refreshing proactively...`);
-      const { data: { session: newSession }, error: refreshError } = await supabase.auth.refreshSession();
-
-      if (refreshError || !newSession) {
-        console.warn('Proactive refresh failed, using existing session:', refreshError?.message);
-        return session; // Use current session as fallback
-      }
-
-      console.log('Session refreshed proactively');
-      return newSession;
-    }
-
-    // Token is valid and not expiring soon
-    return session;
-  } catch (error) {
-    console.error('Unexpected error in getValidSession:', error);
+    return refreshed;
+  } catch {
     return null;
   }
 }
