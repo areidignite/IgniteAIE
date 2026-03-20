@@ -355,7 +355,7 @@ Deno.serve(async (req: Request) => {
       } else if (modelArn) {
         finalModelArn = modelArn;
       } else {
-        finalModelArn = `arn:aws:bedrock:${awsRegion}::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0`;
+        finalModelArn = `arn:aws:bedrock:${awsRegion}::foundation-model/anthropic.claude-sonnet-4-5-20250929-v1:0`;
       }
 
       // Add instruction to extract names from source documents
@@ -500,7 +500,7 @@ Deno.serve(async (req: Request) => {
       if (inferenceProfileId) {
         extractedModelId = inferenceProfileId;
       } else {
-        const modelId = modelArn || 'anthropic.claude-3-5-sonnet-20240620-v1:0';
+        const modelId = modelArn || 'anthropic.claude-sonnet-4-5-20250929-v1:0';
         extractedModelId = modelId.includes('foundation-model/')
           ? modelId.split('foundation-model/')[1]
           : modelId;

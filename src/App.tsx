@@ -86,7 +86,7 @@ function App() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [savingWorkspace, setSavingWorkspace] = useState(false);
   const [models, setModels] = useState<FoundationModel[]>([]);
-  const [selectedModel, setSelectedModel] = useState<string>('anthropic.claude-3-5-sonnet-20240620-v1:0');
+  const [selectedModel, setSelectedModel] = useState<string>('anthropic.claude-sonnet-4-5-20250929-v1:0');
   const [loadingModels, setLoadingModels] = useState(false);
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [selectedKnowledgeBase, setSelectedKnowledgeBase] = useState<string>('');
@@ -247,10 +247,10 @@ function App() {
       });
       setModels(sortedModels);
 
-      if (sortedModels.length > 0 && selectedModel === 'anthropic.claude-3-5-sonnet-20240620-v1:0') {
+      if (sortedModels.length > 0 && selectedModel === 'anthropic.claude-sonnet-4-5-20250929-v1:0') {
         const defaultModel = sortedModels.find(m =>
-          m.modelId === 'anthropic.claude-3-5-sonnet-20240620-v1:0' ||
-          m.modelArn.includes('anthropic.claude-3-5-sonnet-20240620-v1:0')
+          m.modelId === 'anthropic.claude-sonnet-4-5-20250929-v1:0' ||
+          m.modelArn.includes('anthropic.claude-sonnet-4-5-20250929-v1:0')
         );
         if (defaultModel) {
           setSelectedModel(defaultModel.modelArn);
@@ -372,7 +372,7 @@ function App() {
       setWorkspaceContent('');
       setWorkspaceId(null);
       setModels([]);
-      setSelectedModel('anthropic.claude-3-5-sonnet-20240620-v1:0');
+      setSelectedModel('anthropic.claude-sonnet-4-5-20250929-v1:0');
       setKnowledgeBases([]);
       setSelectedKnowledgeBase('');
       setUseKnowledgeBase(true);
@@ -445,7 +445,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
           },
           body: JSON.stringify({
             query: `Original prompt: "${prompt}"\n\nProvide an improved version of this prompt.`,
-            modelArn: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+            modelArn: 'anthropic.claude-haiku-4-5-20251001-v1:0',
             useKnowledgeBase: false,
             generateTitle: false,
             systemPrompt

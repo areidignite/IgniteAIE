@@ -193,8 +193,11 @@ Deno.serve(async (req: Request) => {
       };
     });
 
-    const streamingModels = modelsWithProfiles.filter((model: FoundationModel) =>
-      model.responseStreamingSupported && model.inferenceProfileId && model.inferenceProfileName
+    const streamingModels = modelsWithProfiles.filter((model: any) =>
+      model.responseStreamingSupported &&
+      model.inferenceProfileId &&
+      model.inferenceProfileName &&
+      (!model.modelLifecycle?.status || model.modelLifecycle.status === 'ACTIVE')
     );
 
     return new Response(JSON.stringify({ models: streamingModels }), {
