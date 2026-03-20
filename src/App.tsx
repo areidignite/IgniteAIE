@@ -56,6 +56,7 @@ const KNOWLEDGE_BASE_SUPPORTED_MODEL_PREFIXES = [
 const KNOWLEDGE_BASE_UNSUPPORTED_PATTERNS = [
   'meta.llama3-2-1b',
   'meta.llama3-2-3b',
+  'meta.llama4',
   'twelvelabs'
 ];
 
@@ -144,6 +145,18 @@ function App() {
       fetchKnowledgeBases();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (useKnowledgeBase && models.length > 0) {
+      const selectedModelData = models.find(m => m.modelArn === selectedModel);
+      if (selectedModelData && !isModelSupportedForKnowledgeBase(selectedModelData.modelId)) {
+        const compatibleModel = models.find(m => isModelSupportedForKnowledgeBase(m.modelId));
+        if (compatibleModel) {
+          setSelectedModel(compatibleModel.modelArn);
+        }
+      }
+    }
+  }, [useKnowledgeBase]);
 
   const loadDocuments = async () => {
     const { data, error } = await supabase
@@ -685,7 +698,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
               selectedModel={selectedModel}
               onModelChange={setSelectedModel}
               onRefresh={fetchModels}
-              models={models}
+              models={useKnowledgeBase ? models.filter(m => isModelSupportedForKnowledgeBase(m.modelId)) : models}
               isLoading={loadingModels}
               onSignOut={handleSignOut}
             />
