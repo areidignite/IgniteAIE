@@ -404,13 +404,6 @@ Deno.serve(async (req: Request) => {
         }
       };
 
-      if (includeCitations) {
-        body.retrieveAndGenerateConfiguration.knowledgeBaseConfiguration.orchestrationConfiguration = {
-          queryTransformationConfiguration: {
-            type: "QUERY_DECOMPOSITION"
-          }
-        };
-      }
 
       const bodyString = JSON.stringify(body);
       const headers = await signRequest(
