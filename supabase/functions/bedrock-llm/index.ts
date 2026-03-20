@@ -350,13 +350,17 @@ Deno.serve(async (req: Request) => {
 
       let finalModelArn: string;
 
-      if (inferenceProfileId) {
+      if (inferenceProfileArn) {
+        finalModelArn = inferenceProfileArn;
+      } else if (inferenceProfileId) {
         finalModelArn = inferenceProfileId;
       } else if (modelArn) {
         finalModelArn = modelArn;
       } else {
         finalModelArn = `arn:aws:bedrock:${awsRegion}::foundation-model/anthropic.claude-sonnet-4-5-20250929-v1:0`;
       }
+
+      console.log('Knowledge Base modelArn resolved to:', finalModelArn);
 
       // Add instruction to extract names from source documents
       let enhancedQuery = query;
