@@ -493,20 +493,12 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
     setCurrentCitations([]);
 
     try {
-      // Use the session from state (already managed by onAuthStateChange)
-      if (!session?.access_token) {
-        console.error('No valid session found in state');
-        // Force sign out to clear invalid session
-        await supabase.auth.signOut();
-        setUser(null);
-        setSession(null);
+      const validSession = await getValidSession();
+      if (!validSession?.access_token) {
         throw new Error('Your session has expired. Please log in again.');
       }
 
-      const token = session.access_token;
-      console.log('Using token from session state (first 20 chars):', token.substring(0, 20));
-      console.log('Session user:', session.user?.email);
-      console.log('Token expires at:', new Date(session.expires_at! * 1000).toISOString());
+      const token = validSession.access_token;
 
       const selectedModelData = models.find(m => m.modelArn === selectedModel);
 
@@ -541,58 +533,27 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
       );
 
       if (!response.ok) {
-        console.error('DEBUG: Response not OK. Status:', response.status);
-        console.error('DEBUG: Response status text:', response.statusText);
-
         let errorData;
         try {
           errorData = await response.json();
-          console.error('DEBUG: Full error response:', errorData);
-        } catch (e) {
-          console.error('DEBUG: Could not parse error as JSON');
-          errorData = { message: response.statusText };
+        } catch {
+          errorData = { error: response.statusText };
         }
 
-        if (response.status === 401) {
-          const details = errorData?.details || errorData?.message || 'Unknown auth error';
-          setUser(null); // Clear user state to trigger re-login
-          throw new Error(`Your session has expired. Please log in again.`);
-        }
         if (response.status === 429) {
           throw new Error('AWS Bedrock rate limit exceeded. Please wait 30-60 seconds before trying again.');
         }
 
-        const errorMsg = errorData?.details
-          ? `${errorData.message}\n\nDetails: ${errorData.details}`
-          : errorData?.message || 'Failed to generate content';
-        throw new Error(errorMsg);
+        const errorMsg = errorData?.error || errorData?.message || 'Failed to generate content';
+        const details = errorData?.details;
+        throw new Error(details ? `${errorMsg}\n\nDetails: ${details}` : errorMsg);
       }
 
       const data = await response.json();
-      console.log('Full API response:', data);
-      console.log('API response keys:', Object.keys(data));
-      console.log('Title property exists?', 'title' in data);
-      console.log('Title value:', data.title);
-      console.log('Title type:', typeof data.title);
-
-      if (data.titleDebug) {
-        console.log('=== TITLE DEBUG INFO ===');
-        console.log('Attempted:', data.titleDebug.attempted);
-        console.log('Endpoint:', data.titleDebug.endpoint);
-        console.log('Status:', data.titleDebug.status);
-        console.log('Error:', data.titleDebug.error);
-        if (data.titleDebug.fullResponse) {
-          console.log('Full Response:', JSON.stringify(data.titleDebug.fullResponse, null, 2));
-        }
-        console.log('========================');
-      }
 
       const content = data.answer;
       const citations = data.citations || [];
       const generatedTitle = data.title || prompt.slice(0, 50) + (prompt.length > 50 ? '...' : '');
-
-      console.log('Received title from API:', data.title);
-      console.log('Generated title (fallback applied):', generatedTitle);
 
       setCurrentContent(content);
       setCurrentCitations(citations);
