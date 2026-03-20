@@ -398,6 +398,25 @@ Deno.serve(async (req: Request) => {
                   maxTokens: maxOutputTokens,
                   temperature: 0.7
                 }
+              },
+              promptTemplate: {
+                textPromptTemplate: `You are a helpful assistant. Using the provided search results, answer the user's question accurately and thoroughly. If the search results don't contain enough information to fully answer the question, say so clearly.
+
+$search_results$
+
+$output_format_instructions$
+
+User question: $query$`
+              }
+            },
+            orchestrationConfiguration: {
+              queryTransformationConfiguration: {
+                type: "QUERY_DECOMPOSITION"
+              },
+              promptTemplate: {
+                textPromptTemplate: `Break down the following query into simpler sub-queries if needed to search the knowledge base effectively. If the query is already simple enough, use it as-is.
+
+Query: $query$`
               }
             }
           }
