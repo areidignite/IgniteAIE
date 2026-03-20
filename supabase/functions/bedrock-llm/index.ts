@@ -350,14 +350,23 @@ Deno.serve(async (req: Request) => {
 
       let finalModelArn: string;
 
+      console.log('Knowledge Base model resolution inputs:', {
+        inferenceProfileArn,
+        inferenceProfileId,
+        modelArn,
+      });
+
       if (inferenceProfileArn) {
         finalModelArn = inferenceProfileArn;
       } else if (inferenceProfileId) {
         finalModelArn = inferenceProfileId;
       } else if (modelArn) {
-        finalModelArn = modelArn;
+        const extractedModelId = modelArn.includes('foundation-model/')
+          ? modelArn.split('foundation-model/')[1]
+          : modelArn;
+        finalModelArn = `us.${extractedModelId}`;
       } else {
-        finalModelArn = `arn:aws:bedrock:${awsRegion}::foundation-model/anthropic.claude-sonnet-4-5-20250929-v1:0`;
+        finalModelArn = 'us.anthropic.claude-sonnet-4-5-20250929-v1:0';
       }
 
       console.log('Knowledge Base modelArn resolved to:', finalModelArn);
@@ -505,9 +514,10 @@ Deno.serve(async (req: Request) => {
         extractedModelId = inferenceProfileId;
       } else {
         const modelId = modelArn || 'anthropic.claude-sonnet-4-5-20250929-v1:0';
-        extractedModelId = modelId.includes('foundation-model/')
+        const baseId = modelId.includes('foundation-model/')
           ? modelId.split('foundation-model/')[1]
           : modelId;
+        extractedModelId = `us.${baseId}`;
       }
 
       const endpoint = `https://bedrock-runtime.${awsRegion}.amazonaws.com/model/${extractedModelId}/converse`;
