@@ -410,9 +410,6 @@ User question: $query$`
               }
             },
             orchestrationConfiguration: {
-              queryTransformationConfiguration: {
-                type: "QUERY_DECOMPOSITION"
-              },
               promptTemplate: {
                 textPromptTemplate: `You are a helpful assistant that answers questions using the provided knowledge base. Use the conversation history and search results to provide accurate, thorough answers.
 
