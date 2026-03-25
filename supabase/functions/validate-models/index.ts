@@ -80,7 +80,7 @@ async function signRequest(
     secretAccessKey,
     dateStamp,
     region,
-    serviceName
+    service
   );
   const signature = Array.from(
     new Uint8Array(await hmacSha256(signingKey, stringToSign))
