@@ -89,6 +89,8 @@ function App() {
   const [models, setModels] = useState<FoundationModel[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>('anthropic.claude-sonnet-4-5-20250929-v1:0');
   const [loadingModels, setLoadingModels] = useState(false);
+  const [validatingModels, setValidatingModels] = useState(false);
+  const [validationResult, setValidationResult] = useState<{ accessible: number; denied: number } | null>(null);
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [selectedKnowledgeBase, setSelectedKnowledgeBase] = useState<string>('');
   const [loadingKnowledgeBases, setLoadingKnowledgeBases] = useState(false);
@@ -279,6 +281,64 @@ function App() {
     }
   };
 
+  const validateModels = async () => {
+    if (!user || models.length === 0) return;
+
+    setValidatingModels(true);
+    setValidationResult(null);
+    try {
+      const session = await getValidSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        throw new Error('No authentication token');
+      }
+
+      const modelsToValidate = models.map(m => ({
+        modelId: m.modelId,
+        modelArn: m.modelArn,
+        inferenceProfileId: m.inferenceProfileId,
+      }));
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/validate-models`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ models: modelsToValidate }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to validate models');
+      }
+
+      const data = await response.json();
+      const results: Record<string, boolean> = data.results;
+
+      const accessibleModels = models.filter(m => results[m.modelArn] !== false);
+      setModels(accessibleModels);
+      setValidationResult({
+        accessible: data.summary.accessible,
+        denied: data.summary.denied,
+      });
+
+      if (accessibleModels.length > 0 && !accessibleModels.find(m => m.modelArn === selectedModel)) {
+        setSelectedModel(accessibleModels[0].modelArn);
+      }
+    } catch (error) {
+      console.error('Error validating models:', error);
+      setError(error instanceof Error ? error.message : 'Failed to validate models');
+    } finally {
+      setValidatingModels(false);
+    }
+  };
+
   const fetchKnowledgeBases = async () => {
     if (!user) return;
 
@@ -386,6 +446,7 @@ function App() {
       setWorkspaceId(null);
       setModels([]);
       setSelectedModel('anthropic.claude-sonnet-4-5-20250929-v1:0');
+      setValidationResult(null);
       setKnowledgeBases([]);
       setSelectedKnowledgeBase('');
       setUseKnowledgeBase(true);
@@ -698,8 +759,11 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
               selectedModel={selectedModel}
               onModelChange={setSelectedModel}
               onRefresh={fetchModels}
+              onValidate={validateModels}
               models={useKnowledgeBase ? models.filter(m => isModelSupportedForKnowledgeBase(m.modelId)) : models}
               isLoading={loadingModels}
+              isValidating={validatingModels}
+              validationResult={validationResult}
               onSignOut={handleSignOut}
             />
           </div>
