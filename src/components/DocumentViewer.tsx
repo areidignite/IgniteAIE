@@ -1,6 +1,6 @@
-import { FileText, Copy, Check, Link2, ExternalLink, ChevronUp, ChevronDown } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { supabase, getValidSession } from '../lib/supabase';
+import { FileText, Copy, Check, Link2, ExternalLink, ChevronUp, ChevronDown, Pencil, Save, X } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { getValidSession } from '../lib/supabase';
 
 interface DocumentViewerProps {
   content: string;
@@ -8,17 +8,36 @@ interface DocumentViewerProps {
   citations?: Array<{ text: string; location?: any }>;
   usedKnowledgeBase?: boolean;
   modelName?: string;
+  documentId?: string;
+  onContentUpdate?: (id: string, content: string) => void;
 }
 
-export function DocumentViewer({ content, prompt, citations = [], usedKnowledgeBase, modelName }: DocumentViewerProps) {
+export function DocumentViewer({ content, prompt, citations = [], usedKnowledgeBase, modelName, documentId, onContentUpdate }: DocumentViewerProps) {
   const [copied, setCopied] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [presignedUrls, setPresignedUrls] = useState<Record<string, string>>({});
   const [loadingUrls, setLoadingUrls] = useState<Set<string>>(new Set());
   const [promptCollapsed, setPromptCollapsed] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editContent, setEditContent] = useState(content);
+  const [saving, setSaving] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    setEditContent(content);
+    setEditing(false);
+  }, [content]);
+
+  useEffect(() => {
+    if (editing && textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+      textareaRef.current.focus();
+    }
+  }, [editing, editContent]);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(content);
+    await navigator.clipboard.writeText(editing ? editContent : content);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -31,6 +50,27 @@ export function DocumentViewer({ content, prompt, citations = [], usedKnowledgeB
 
   const handleDragEnd = () => {
     setDragging(false);
+  };
+
+  const handleStartEdit = () => {
+    setEditContent(content);
+    setEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditContent(content);
+    setEditing(false);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!documentId || !onContentUpdate) return;
+    setSaving(true);
+    try {
+      await onContentUpdate(documentId, editContent);
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
   useEffect(() => {
@@ -96,22 +136,56 @@ export function DocumentViewer({ content, prompt, citations = [], usedKnowledgeB
           <FileText className="w-5 h-5" />
           <span className="font-medium">Generated Document</span>
         </div>
-        <button
-          onClick={handleCopy}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg transition-colors"
-        >
-          {copied ? (
+        <div className="flex items-center gap-2">
+          {editing ? (
             <>
-              <Check className="w-4 h-4" />
-              Copied
+              <button
+                onClick={handleCancelEdit}
+                disabled={saving}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4" />
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={saving || editContent === content}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+              >
+                <Save className="w-4 h-4" />
+                {saving ? 'Saving...' : 'Save'}
+              </button>
             </>
           ) : (
             <>
-              <Copy className="w-4 h-4" />
-              Copy
+              {documentId && onContentUpdate && (
+                <button
+                  onClick={handleStartEdit}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg transition-colors"
+                >
+                  <Pencil className="w-4 h-4" />
+                  Edit
+                </button>
+              )}
+              <button
+                onClick={handleCopy}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg transition-colors"
+              >
+                {copied ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    Copy
+                  </>
+                )}
+              </button>
             </>
           )}
-        </button>
+        </div>
       </div>
 
       {prompt && (
@@ -152,19 +226,33 @@ export function DocumentViewer({ content, prompt, citations = [], usedKnowledgeB
 
       <div>
         <div className="prose prose-slate max-w-none">
-          <div
-            draggable
-            onDragStart={(e) => handleDragStart(e, content)}
-            onDragEnd={handleDragEnd}
-            className={`whitespace-pre-wrap text-slate-800 dark:text-slate-200 leading-relaxed cursor-move select-text ${
-              dragging ? 'opacity-50' : ''
-            } hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded p-2 transition-colors`}
-          >
-            {content}
-          </div>
+          {editing ? (
+            <textarea
+              ref={textareaRef}
+              value={editContent}
+              onChange={(e) => {
+                setEditContent(e.target.value);
+                e.target.style.height = 'auto';
+                e.target.style.height = e.target.scrollHeight + 'px';
+              }}
+              className="w-full p-3 bg-white dark:bg-slate-700 border-2 border-blue-400 dark:border-blue-500 rounded-lg text-slate-800 dark:text-slate-200 leading-relaxed text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono overflow-hidden"
+              style={{ minHeight: '200px' }}
+            />
+          ) : (
+            <div
+              draggable
+              onDragStart={(e) => handleDragStart(e, content)}
+              onDragEnd={handleDragEnd}
+              className={`whitespace-pre-wrap text-slate-800 dark:text-slate-200 leading-relaxed cursor-move select-text ${
+                dragging ? 'opacity-50' : ''
+              } hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded p-2 transition-colors`}
+            >
+              {content}
+            </div>
+          )}
         </div>
 
-        {citations.length > 0 && (() => {
+        {!editing && citations.length > 0 && (() => {
           const uniqueLinks = new Map<string, { uri: string; filename: string; type: 's3' | 'web' }>();
           for (const citation of citations) {
             const s3Uri = citation.location?.s3Location?.uri;
@@ -237,6 +325,12 @@ export function DocumentViewer({ content, prompt, citations = [], usedKnowledgeB
           );
         })()}
       </div>
+
+      {editing && (
+        <div className="mt-3 text-xs text-slate-500 dark:text-slate-400 text-right">
+          {editContent.length} characters
+        </div>
+      )}
     </div>
   );
 }

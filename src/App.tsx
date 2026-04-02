@@ -668,6 +668,27 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
     setCurrentCitations(doc.citations || []);
   };
 
+  const handleUpdateDocumentContent = async (id: string, newContent: string) => {
+    const { error } = await supabase
+      .from('documents')
+      .update({ content: newContent })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating document:', error);
+      setError('Failed to save document changes');
+      return;
+    }
+
+    setDocuments(documents.map(doc =>
+      doc.id === id ? { ...doc, content: newContent } : doc
+    ));
+    if (selectedDocument?.id === id) {
+      setCurrentContent(newContent);
+      setSelectedDocument({ ...selectedDocument, content: newContent });
+    }
+  };
+
   const handleDeleteDocument = async (id: string) => {
     const { error } = await supabase.from('documents').delete().eq('id', id);
 
@@ -812,6 +833,8 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
                   citations={currentCitations}
                   usedKnowledgeBase={selectedDocument?.used_knowledge_base}
                   modelName={selectedDocument?.model_name}
+                  documentId={selectedDocument?.id}
+                  onContentUpdate={handleUpdateDocumentContent}
                 />
               </div>
             </div>
