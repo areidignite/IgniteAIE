@@ -1,6 +1,7 @@
 import { Save, File as FileEdit, Trash2, Download, ChevronDown, FileText, FileType } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { exportToDocx, exportToPdf, exportToTxt } from '../lib/exportDocument';
+import { RichTextEditor } from './RichTextEditor';
 
 interface WorkspaceEditorProps {
   content: string;
@@ -11,22 +12,14 @@ interface WorkspaceEditorProps {
 }
 
 export function WorkspaceEditor({ content, onChange, onSave, onClear, isSaving }: WorkspaceEditorProps) {
-  const [localContent, setLocalContent] = useState(content);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const [htmlContent, setHtmlContent] = useState(content);
 
   useEffect(() => {
-    setLocalContent(content);
+    setHtmlContent(content);
   }, [content]);
-
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
-    }
-  }, [localContent]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -38,56 +31,37 @@ export function WorkspaceEditor({ content, onChange, onSave, onClear, isSaving }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newContent = e.target.value;
-    setLocalContent(newContent);
-    onChange(newContent);
-
-    e.target.style.height = 'auto';
-    e.target.style.height = e.target.scrollHeight + 'px';
+  const handleEditorChange = (html: string) => {
+    setHtmlContent(html);
+    onChange(html);
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLTextAreaElement>) => {
-    e.preventDefault();
-    const text = e.dataTransfer.getData('text/plain');
-    if (text) {
-      const textarea = e.currentTarget;
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const newContent = localContent.slice(0, start) + text + localContent.slice(end);
-      setLocalContent(newContent);
-      onChange(newContent);
-
-      setTimeout(() => {
-        textarea.selectionStart = textarea.selectionEnd = start + text.length;
-        textarea.focus();
-      }, 0);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLTextAreaElement>) => {
-    e.preventDefault();
+  const isContentEmpty = () => {
+    const stripped = htmlContent.replace(/<[^>]*>/g, '').trim();
+    return stripped.length === 0;
   };
 
   const handleExport = async (format: 'docx' | 'pdf' | 'txt') => {
-    if (!localContent.trim()) return;
+    if (isContentEmpty()) return;
     setExporting(true);
     setShowExportMenu(false);
     try {
       if (format === 'docx') {
-        await exportToDocx(localContent);
+        await exportToDocx(htmlContent);
       } else if (format === 'pdf') {
-        exportToPdf(localContent);
+        exportToPdf(htmlContent);
       } else {
-        exportToTxt(localContent);
+        exportToTxt(htmlContent);
       }
     } finally {
       setExporting(false);
     }
   };
 
+  const charCount = htmlContent.replace(/<[^>]*>/g, '').length;
+
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col h-full">
       <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-200 dark:border-slate-700">
         <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
           <FileEdit className="w-5 h-5" />
@@ -97,7 +71,7 @@ export function WorkspaceEditor({ content, onChange, onSave, onClear, isSaving }
           <div className="relative" ref={exportMenuRef}>
             <button
               onClick={() => setShowExportMenu(!showExportMenu)}
-              disabled={!localContent.trim() || exporting}
+              disabled={isContentEmpty() || exporting}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 disabled:bg-green-300 dark:disabled:bg-green-800 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
             >
               <Download className="w-4 h-4" />
@@ -158,30 +132,16 @@ export function WorkspaceEditor({ content, onChange, onSave, onClear, isSaving }
         </div>
       </div>
 
-      <div className="relative">
-        <textarea
-          ref={textareaRef}
-          value={localContent}
-          onChange={handleChange}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
+      <div className="flex-1">
+        <RichTextEditor
+          content={htmlContent}
+          onChange={handleEditorChange}
           placeholder="Start typing or drag and drop content from your documents or generated answers..."
-          className="w-full p-4 bg-slate-50 border border-slate-200 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800 leading-relaxed font-mono text-sm overflow-hidden"
-          style={{ minHeight: '600px' }}
         />
-        {localContent.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="text-center text-slate-400 dark:text-slate-500 space-y-2">
-              <FileEdit className="w-12 h-12 mx-auto opacity-30" />
-              <p className="text-sm">Drag & drop documents here</p>
-              <p className="text-xs">Or start typing to build your document</p>
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="mt-3 text-xs text-slate-500 dark:text-slate-400 text-right">
-        {localContent.length} characters
+        {charCount} characters
       </div>
     </div>
   );

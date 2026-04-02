@@ -5,69 +5,234 @@ function getDateSlug() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function parseContentToParagraphs(content: string): Paragraph[] {
-  const lines = content.split('\n');
+function htmlToPlainText(html: string): string {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  return div.textContent || div.innerText || '';
+}
+
+function parseHtmlToParagraphs(html: string): Paragraph[] {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
   const paragraphs: Paragraph[] = [];
 
-  for (const line of lines) {
-    const trimmed = line.trim();
+  function getAlignment(el: Element): typeof AlignmentType[keyof typeof AlignmentType] | undefined {
+    const style = el.getAttribute('style') || '';
+    if (style.includes('text-align: center')) return AlignmentType.CENTER;
+    if (style.includes('text-align: right')) return AlignmentType.RIGHT;
+    if (style.includes('text-align: justify')) return AlignmentType.JUSTIFIED;
+    return undefined;
+  }
 
-    if (trimmed === '') {
-      paragraphs.push(new Paragraph({ spacing: { after: 120 } }));
-      continue;
+  function extractRuns(node: Node): TextRun[] {
+    const runs: TextRun[] = [];
+
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent || '';
+      if (text) {
+        runs.push(new TextRun({ text, font: 'Calibri', size: 22 }));
+      }
+      return runs;
     }
 
-    const h1Match = trimmed.match(/^#\s+(.+)/);
-    const h2Match = trimmed.match(/^##\s+(.+)/);
-    const h3Match = trimmed.match(/^###\s+(.+)/);
-    const bulletMatch = trimmed.match(/^[-*]\s+(.+)/);
-    const numberedMatch = trimmed.match(/^(\d+)[.)]\s+(.+)/);
+    if (node.nodeType !== Node.ELEMENT_NODE) return runs;
 
-    if (h1Match) {
+    const el = node as Element;
+    const tag = el.tagName.toLowerCase();
+
+    const childRuns: TextRun[] = [];
+    for (const child of Array.from(el.childNodes)) {
+      childRuns.push(...extractRuns(child));
+    }
+
+    if (tag === 'strong' || tag === 'b') {
+      return childRuns.map(r => {
+        const opts = { ...getRunOptions(r), bold: true };
+        return new TextRun(opts);
+      });
+    }
+    if (tag === 'em' || tag === 'i') {
+      return childRuns.map(r => {
+        const opts = { ...getRunOptions(r), italics: true };
+        return new TextRun(opts);
+      });
+    }
+    if (tag === 'u') {
+      return childRuns.map(r => {
+        const opts = { ...getRunOptions(r), underline: { type: 'single' as const } };
+        return new TextRun(opts);
+      });
+    }
+    if (tag === 's' || tag === 'strike' || tag === 'del') {
+      return childRuns.map(r => {
+        const opts = { ...getRunOptions(r), strike: true };
+        return new TextRun(opts);
+      });
+    }
+    if (tag === 'mark') {
+      return childRuns.map(r => {
+        const opts = { ...getRunOptions(r), highlight: 'yellow' as const };
+        return new TextRun(opts);
+      });
+    }
+
+    return childRuns;
+  }
+
+  function getRunOptions(run: TextRun): Record<string, unknown> {
+    const props = (run as any).properties || {};
+    const root = (run as any).root || [];
+    let text = '';
+    if (root.length > 1 && typeof root[1] === 'string') {
+      text = root[1];
+    } else {
+      for (const item of root) {
+        if (typeof item === 'string') {
+          text = item;
+          break;
+        }
+      }
+    }
+    return {
+      text,
+      font: 'Calibri',
+      size: 22,
+      bold: props.bold,
+      italics: props.italics,
+      underline: props.underline,
+      strike: props.strike,
+      highlight: props.highlight,
+    };
+  }
+
+  function processNode(node: Element, listLevel = 0) {
+    const tag = node.tagName.toLowerCase();
+    const align = getAlignment(node);
+
+    if (tag === 'h1' || tag === 'h2' || tag === 'h3') {
+      const level = tag === 'h1' ? HeadingLevel.HEADING_1 : tag === 'h2' ? HeadingLevel.HEADING_2 : HeadingLevel.HEADING_3;
       paragraphs.push(
         new Paragraph({
-          children: parseInlineFormatting(h1Match[1]),
-          heading: HeadingLevel.HEADING_1,
+          children: extractRuns(node),
+          heading: level,
+          alignment: align,
           spacing: { before: 240, after: 120 },
         })
       );
-    } else if (h2Match) {
+    } else if (tag === 'p') {
+      const runs = extractRuns(node);
+      if (runs.length === 0) {
+        paragraphs.push(new Paragraph({ spacing: { after: 80 } }));
+      } else {
+        paragraphs.push(
+          new Paragraph({
+            children: runs,
+            alignment: align,
+            spacing: { after: 80 },
+          })
+        );
+      }
+    } else if (tag === 'ul' || tag === 'ol') {
+      for (const child of Array.from(node.children)) {
+        if (child.tagName.toLowerCase() === 'li') {
+          processListItem(child, tag, listLevel);
+        }
+      }
+    } else if (tag === 'hr') {
       paragraphs.push(
         new Paragraph({
-          children: parseInlineFormatting(h2Match[1]),
-          heading: HeadingLevel.HEADING_2,
-          spacing: { before: 200, after: 100 },
+          children: [new TextRun({ text: '_______________________________________________', font: 'Calibri', size: 22, color: 'CCCCCC' })],
+          spacing: { before: 120, after: 120 },
         })
       );
-    } else if (h3Match) {
-      paragraphs.push(
-        new Paragraph({
-          children: parseInlineFormatting(h3Match[1]),
-          heading: HeadingLevel.HEADING_3,
-          spacing: { before: 160, after: 80 },
-        })
-      );
-    } else if (bulletMatch) {
-      paragraphs.push(
-        new Paragraph({
-          children: parseInlineFormatting(bulletMatch[1]),
-          bullet: { level: 0 },
-          spacing: { after: 60 },
-        })
-      );
-    } else if (numberedMatch) {
-      paragraphs.push(
-        new Paragraph({
-          children: parseInlineFormatting(numberedMatch[2]),
-          numbering: { reference: 'default-numbering', level: 0 },
-          spacing: { after: 60 },
-        })
-      );
+    } else if (tag === 'blockquote') {
+      for (const child of Array.from(node.children)) {
+        if (child.nodeType === Node.ELEMENT_NODE) {
+          const runs = extractRuns(child);
+          paragraphs.push(
+            new Paragraph({
+              children: runs.map(r => {
+                const opts = { ...getRunOptions(r), italics: true };
+                return new TextRun(opts);
+              }),
+              indent: { left: 720 },
+              spacing: { after: 80 },
+            })
+          );
+        }
+      }
     } else {
+      for (const child of Array.from(node.children)) {
+        if (child.nodeType === Node.ELEMENT_NODE) {
+          processNode(child as Element, listLevel);
+        }
+      }
+    }
+  }
+
+  function processListItem(li: Element, listType: string, level: number) {
+    const directRuns: TextRun[] = [];
+    const nestedLists: Element[] = [];
+
+    for (const child of Array.from(li.childNodes)) {
+      if (child.nodeType === Node.ELEMENT_NODE) {
+        const childEl = child as Element;
+        const childTag = childEl.tagName.toLowerCase();
+        if (childTag === 'ul' || childTag === 'ol') {
+          nestedLists.push(childEl);
+        } else if (childTag === 'p') {
+          directRuns.push(...extractRuns(childEl));
+        } else {
+          directRuns.push(...extractRuns(childEl));
+        }
+      } else if (child.nodeType === Node.TEXT_NODE) {
+        const text = child.textContent || '';
+        if (text.trim()) {
+          directRuns.push(new TextRun({ text, font: 'Calibri', size: 22 }));
+        }
+      }
+    }
+
+    if (directRuns.length > 0) {
+      if (listType === 'ul') {
+        paragraphs.push(
+          new Paragraph({
+            children: directRuns,
+            bullet: { level },
+            spacing: { after: 60 },
+          })
+        );
+      } else {
+        paragraphs.push(
+          new Paragraph({
+            children: directRuns,
+            numbering: { reference: 'default-numbering', level },
+            spacing: { after: 60 },
+          })
+        );
+      }
+    }
+
+    for (const nestedList of nestedLists) {
+      const nestedTag = nestedList.tagName.toLowerCase();
+      for (const nestedLi of Array.from(nestedList.children)) {
+        if (nestedLi.tagName.toLowerCase() === 'li') {
+          processListItem(nestedLi, nestedTag, level + 1);
+        }
+      }
+    }
+  }
+
+  for (const child of Array.from(doc.body.children)) {
+    processNode(child as Element);
+  }
+
+  if (paragraphs.length === 0) {
+    const text = doc.body.textContent || '';
+    if (text.trim()) {
       paragraphs.push(
         new Paragraph({
-          children: parseInlineFormatting(trimmed),
-          spacing: { after: 80 },
+          children: [new TextRun({ text: text.trim(), font: 'Calibri', size: 22 })],
         })
       );
     }
@@ -76,32 +241,8 @@ function parseContentToParagraphs(content: string): Paragraph[] {
   return paragraphs;
 }
 
-function parseInlineFormatting(text: string): TextRun[] {
-  const runs: TextRun[] = [];
-  const regex = /(\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*|([^*]+))/g;
-  let match;
-
-  while ((match = regex.exec(text)) !== null) {
-    if (match[2]) {
-      runs.push(new TextRun({ text: match[2], bold: true, italics: true, font: 'Calibri', size: 22 }));
-    } else if (match[3]) {
-      runs.push(new TextRun({ text: match[3], bold: true, font: 'Calibri', size: 22 }));
-    } else if (match[4]) {
-      runs.push(new TextRun({ text: match[4], italics: true, font: 'Calibri', size: 22 }));
-    } else if (match[5]) {
-      runs.push(new TextRun({ text: match[5], font: 'Calibri', size: 22 }));
-    }
-  }
-
-  if (runs.length === 0) {
-    runs.push(new TextRun({ text, font: 'Calibri', size: 22 }));
-  }
-
-  return runs;
-}
-
-export async function exportToDocx(content: string, filename?: string) {
-  const paragraphs = parseContentToParagraphs(content);
+export async function exportToDocx(html: string, filename?: string) {
+  const paragraphs = parseHtmlToParagraphs(html);
 
   const doc = new Document({
     numbering: {
@@ -109,12 +250,9 @@ export async function exportToDocx(content: string, filename?: string) {
         {
           reference: 'default-numbering',
           levels: [
-            {
-              level: 0,
-              format: 'decimal' as const,
-              text: '%1.',
-              alignment: AlignmentType.START,
-            },
+            { level: 0, format: 'decimal' as const, text: '%1.', alignment: AlignmentType.START },
+            { level: 1, format: 'lowerLetter' as const, text: '%2.', alignment: AlignmentType.START },
+            { level: 2, format: 'lowerRoman' as const, text: '%3.', alignment: AlignmentType.START },
           ],
         },
       ],
@@ -123,12 +261,7 @@ export async function exportToDocx(content: string, filename?: string) {
       {
         properties: {
           page: {
-            margin: {
-              top: 1440,
-              right: 1440,
-              bottom: 1440,
-              left: 1440,
-            },
+            margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
           },
         },
         children: paragraphs,
@@ -140,11 +273,9 @@ export async function exportToDocx(content: string, filename?: string) {
   saveAs(blob, filename || `document-${getDateSlug()}.docx`);
 }
 
-export function exportToPdf(content: string) {
+export function exportToPdf(html: string) {
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;
-
-  const htmlContent = contentToHtml(content);
 
   printWindow.document.write(`
     <!DOCTYPE html>
@@ -162,18 +293,21 @@ export function exportToPdf(content: string) {
           margin: 0;
           padding: 0;
         }
-        h1 { font-size: 18pt; margin: 16pt 0 8pt; color: #0f172a; }
-        h2 { font-size: 14pt; margin: 14pt 0 6pt; color: #1e293b; }
-        h3 { font-size: 12pt; margin: 12pt 0 4pt; color: #334155; }
+        h1 { font-size: 18pt; margin: 16pt 0 8pt; color: #0f172a; font-weight: 700; }
+        h2 { font-size: 14pt; margin: 14pt 0 6pt; color: #1e293b; font-weight: 600; }
+        h3 { font-size: 12pt; margin: 12pt 0 4pt; color: #334155; font-weight: 600; }
         p { margin: 0 0 8pt; }
         ul, ol { margin: 4pt 0 8pt 20pt; }
         li { margin-bottom: 4pt; }
+        mark { background-color: #fef08a; padding: 0 2px; }
+        blockquote { border-left: 3px solid #cbd5e1; margin: 8pt 0; padding: 4pt 0 4pt 12pt; color: #475569; }
+        hr { border: none; border-top: 1px solid #e2e8f0; margin: 12pt 0; }
         @media print {
           body { -webkit-print-color-adjust: exact; }
         }
       </style>
     </head>
-    <body>${htmlContent}</body>
+    <body>${html}</body>
     </html>
   `);
   printWindow.document.close();
@@ -185,83 +319,9 @@ export function exportToPdf(content: string) {
   };
 }
 
-function contentToHtml(content: string): string {
-  const lines = content.split('\n');
-  const htmlParts: string[] = [];
-  let inList: 'ul' | 'ol' | null = null;
-
-  const escapeHtml = (str: string) =>
-    str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-  const formatInline = (text: string) => {
-    return escapeHtml(text)
-      .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>');
-  };
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-
-    if (trimmed === '') {
-      if (inList) {
-        htmlParts.push(inList === 'ul' ? '</ul>' : '</ol>');
-        inList = null;
-      }
-      continue;
-    }
-
-    const h1Match = trimmed.match(/^#\s+(.+)/);
-    const h2Match = trimmed.match(/^##\s+(.+)/);
-    const h3Match = trimmed.match(/^###\s+(.+)/);
-    const bulletMatch = trimmed.match(/^[-*]\s+(.+)/);
-    const numberedMatch = trimmed.match(/^(\d+)[.)]\s+(.+)/);
-
-    if (h1Match || h2Match || h3Match) {
-      if (inList) {
-        htmlParts.push(inList === 'ul' ? '</ul>' : '</ol>');
-        inList = null;
-      }
-    }
-
-    if (h1Match) {
-      htmlParts.push(`<h1>${formatInline(h1Match[1])}</h1>`);
-    } else if (h2Match) {
-      htmlParts.push(`<h2>${formatInline(h2Match[1])}</h2>`);
-    } else if (h3Match) {
-      htmlParts.push(`<h3>${formatInline(h3Match[1])}</h3>`);
-    } else if (bulletMatch) {
-      if (inList !== 'ul') {
-        if (inList) htmlParts.push('</ol>');
-        htmlParts.push('<ul>');
-        inList = 'ul';
-      }
-      htmlParts.push(`<li>${formatInline(bulletMatch[1])}</li>`);
-    } else if (numberedMatch) {
-      if (inList !== 'ol') {
-        if (inList) htmlParts.push('</ul>');
-        htmlParts.push('<ol>');
-        inList = 'ol';
-      }
-      htmlParts.push(`<li>${formatInline(numberedMatch[2])}</li>`);
-    } else {
-      if (inList) {
-        htmlParts.push(inList === 'ul' ? '</ul>' : '</ol>');
-        inList = null;
-      }
-      htmlParts.push(`<p>${formatInline(trimmed)}</p>`);
-    }
-  }
-
-  if (inList) {
-    htmlParts.push(inList === 'ul' ? '</ul>' : '</ol>');
-  }
-
-  return htmlParts.join('\n');
-}
-
-export function exportToTxt(content: string, filename?: string) {
-  const blob = new Blob([content], { type: 'text/plain' });
+export function exportToTxt(html: string, filename?: string) {
+  const plainText = htmlToPlainText(html);
+  const blob = new Blob([plainText], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
