@@ -897,7 +897,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
                           : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                       }`}
                     >
-                      Documents
+                      Responses
                     </button>
                     <button
                       onClick={() => setActiveTab('s3-browser')}
@@ -907,7 +907,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
                           : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                       }`}
                     >
-                      File Browser
+                      Knowledge Base Browser
                     </button>
                   </div>
 
