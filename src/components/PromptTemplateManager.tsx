@@ -10,6 +10,7 @@ interface PromptTemplateManagerProps {
   onDelete: (id: string) => Promise<void>;
   onToggleFavorite: (id: string, isFavorite: boolean) => Promise<void>;
   onUseTemplate: (template: PromptTemplate) => void;
+  initialContent?: string;
 }
 
 type FormMode = 'list' | 'create' | 'edit';
@@ -32,12 +33,13 @@ export function PromptTemplateManager({
   onDelete,
   onToggleFavorite,
   onUseTemplate,
+  initialContent,
 }: PromptTemplateManagerProps) {
-  const [mode, setMode] = useState<FormMode>('list');
+  const [mode, setMode] = useState<FormMode>(initialContent ? 'create' : 'list');
   const [editingTemplate, setEditingTemplate] = useState<PromptTemplate | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [content, setContent] = useState('');
+  const [content, setContent] = useState(initialContent || '');
   const [category, setCategory] = useState('');
   const [isFavorite, setIsFavorite] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');

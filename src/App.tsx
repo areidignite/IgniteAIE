@@ -110,7 +110,7 @@ function App() {
   const [storageBlocked, setStorageBlocked] = useState(false);
   const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
   const [showTemplateManager, setShowTemplateManager] = useState(false);
-  const [templateManagerInitialMode, setTemplateManagerInitialMode] = useState<'list' | 'create'>('list');
+  const [templateManagerInitialContent, setTemplateManagerInitialContent] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     // Check for storage access
@@ -279,12 +279,12 @@ function App() {
   };
 
   const handleSaveCurrentPrompt = () => {
-    setTemplateManagerInitialMode('create');
+    setTemplateManagerInitialContent(prompt);
     setShowTemplateManager(true);
   };
 
   const handleManageTemplates = () => {
-    setTemplateManagerInitialMode('list');
+    setTemplateManagerInitialContent(undefined);
     setShowTemplateManager(true);
   };
 
@@ -984,7 +984,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
       {showTemplateManager && (
         <PromptTemplateManager
           templates={promptTemplates}
-          onClose={() => setShowTemplateManager(false)}
+          onClose={() => { setShowTemplateManager(false); setTemplateManagerInitialContent(undefined); }}
           onSave={handleCreateTemplate}
           onUpdate={handleUpdateTemplate}
           onDelete={handleDeleteTemplate}
@@ -992,7 +992,9 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
           onUseTemplate={(template) => {
             handleSelectTemplate(template);
             setShowTemplateManager(false);
+            setTemplateManagerInitialContent(undefined);
           }}
+          initialContent={templateManagerInitialContent}
         />
       )}
 
