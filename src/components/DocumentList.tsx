@@ -91,7 +91,7 @@ export function DocumentList({ documents, selectedId, onSelect, onDelete }: Docu
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search documents..."
+          placeholder="Search Responses..."
           className="w-full pl-9 pr-20 py-2 text-sm bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
         />
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">

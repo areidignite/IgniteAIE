@@ -913,7 +913,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
 
                   {activeTab === 'documents' ? (
                     <>
-                      <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4">Your Documents (drag to Create Document window)</h2>
+                      <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4">Your Responses (drag to Create Document window)</h2>
                       <div className="flex-1 overflow-y-auto">
                         <DocumentList
                           documents={documents}
