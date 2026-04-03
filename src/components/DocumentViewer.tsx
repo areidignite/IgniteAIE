@@ -125,7 +125,7 @@ export function DocumentViewer({ content, prompt, citations = [], usedKnowledgeB
     return (
       <div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500 gap-4">
         <FileText className="w-16 h-16" />
-        <p className="text-lg">Your generated document will appear here</p>
+        <p className="text-lg">Your response will appear here</p>
       </div>
     );
   }
