@@ -38,6 +38,18 @@ function htmlToPlainText(html: string): string {
   return div.textContent || div.innerText || '';
 }
 
+interface RunOptions {
+  text: string;
+  font: string;
+  size: number;
+  bold?: boolean;
+  italics?: boolean;
+  underline?: { type: 'single' };
+  strike?: boolean;
+  highlight?: 'yellow';
+  color?: string;
+}
+
 function parseHtmlToParagraphs(html: string): Paragraph[] {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
@@ -51,85 +63,37 @@ function parseHtmlToParagraphs(html: string): Paragraph[] {
     return undefined;
   }
 
-  function extractRuns(node: Node): TextRun[] {
-    const runs: TextRun[] = [];
-
+  function extractRunOptions(node: Node, inherited: Partial<RunOptions> = {}): RunOptions[] {
     if (node.nodeType === Node.TEXT_NODE) {
       const text = node.textContent || '';
       if (text) {
-        runs.push(new TextRun({ text, font: 'Calibri', size: 22 }));
+        return [{ text, font: 'Calibri', size: 22, ...inherited }];
       }
-      return runs;
+      return [];
     }
 
-    if (node.nodeType !== Node.ELEMENT_NODE) return runs;
+    if (node.nodeType !== Node.ELEMENT_NODE) return [];
 
     const el = node as Element;
     const tag = el.tagName.toLowerCase();
 
-    const childRuns: TextRun[] = [];
+    const formatting: Partial<RunOptions> = { ...inherited };
+
+    if (tag === 'strong' || tag === 'b') formatting.bold = true;
+    if (tag === 'em' || tag === 'i') formatting.italics = true;
+    if (tag === 'u') formatting.underline = { type: 'single' };
+    if (tag === 's' || tag === 'strike' || tag === 'del') formatting.strike = true;
+    if (tag === 'mark') formatting.highlight = 'yellow';
+
+    const results: RunOptions[] = [];
     for (const child of Array.from(el.childNodes)) {
-      childRuns.push(...extractRuns(child));
+      results.push(...extractRunOptions(child, formatting));
     }
-
-    if (tag === 'strong' || tag === 'b') {
-      return childRuns.map(r => {
-        const opts = { ...getRunOptions(r), bold: true };
-        return new TextRun(opts);
-      });
-    }
-    if (tag === 'em' || tag === 'i') {
-      return childRuns.map(r => {
-        const opts = { ...getRunOptions(r), italics: true };
-        return new TextRun(opts);
-      });
-    }
-    if (tag === 'u') {
-      return childRuns.map(r => {
-        const opts = { ...getRunOptions(r), underline: { type: 'single' as const } };
-        return new TextRun(opts);
-      });
-    }
-    if (tag === 's' || tag === 'strike' || tag === 'del') {
-      return childRuns.map(r => {
-        const opts = { ...getRunOptions(r), strike: true };
-        return new TextRun(opts);
-      });
-    }
-    if (tag === 'mark') {
-      return childRuns.map(r => {
-        const opts = { ...getRunOptions(r), highlight: 'yellow' as const };
-        return new TextRun(opts);
-      });
-    }
-
-    return childRuns;
+    return results;
   }
 
-  function getRunOptions(run: TextRun): Record<string, unknown> {
-    const props = (run as any).properties || {};
-    const root = (run as any).root || [];
-    let text = '';
-    if (root.length > 1 && typeof root[1] === 'string') {
-      text = root[1];
-    } else {
-      for (const item of root) {
-        if (typeof item === 'string') {
-          text = item;
-          break;
-        }
-      }
-    }
-    return {
-      text,
-      font: 'Calibri',
-      size: 22,
-      bold: props.bold,
-      italics: props.italics,
-      underline: props.underline,
-      strike: props.strike,
-      highlight: props.highlight,
-    };
+  function toTextRuns(opts: RunOptions[]): TextRun[] {
+    return opts.map(o => new TextRun(o));
   }
 
   function processNode(node: Element, listLevel = 0) {
@@ -140,20 +104,20 @@ function parseHtmlToParagraphs(html: string): Paragraph[] {
       const level = tag === 'h1' ? HeadingLevel.HEADING_1 : tag === 'h2' ? HeadingLevel.HEADING_2 : HeadingLevel.HEADING_3;
       paragraphs.push(
         new Paragraph({
-          children: extractRuns(node),
+          children: toTextRuns(extractRunOptions(node)),
           heading: level,
           alignment: align,
           spacing: { before: 240, after: 120 },
         })
       );
     } else if (tag === 'p') {
-      const runs = extractRuns(node);
+      const runs = extractRunOptions(node);
       if (runs.length === 0) {
         paragraphs.push(new Paragraph({ spacing: { after: 80 } }));
       } else {
         paragraphs.push(
           new Paragraph({
-            children: runs,
+            children: toTextRuns(runs),
             alignment: align,
             spacing: { after: 80 },
           })
@@ -175,13 +139,10 @@ function parseHtmlToParagraphs(html: string): Paragraph[] {
     } else if (tag === 'blockquote') {
       for (const child of Array.from(node.children)) {
         if (child.nodeType === Node.ELEMENT_NODE) {
-          const runs = extractRuns(child);
+          const runs = extractRunOptions(child, { italics: true });
           paragraphs.push(
             new Paragraph({
-              children: runs.map(r => {
-                const opts = { ...getRunOptions(r), italics: true };
-                return new TextRun(opts);
-              }),
+              children: toTextRuns(runs),
               indent: { left: 720 },
               spacing: { after: 80 },
             })
@@ -198,7 +159,7 @@ function parseHtmlToParagraphs(html: string): Paragraph[] {
   }
 
   function processListItem(li: Element, listType: string, level: number) {
-    const directRuns: TextRun[] = [];
+    const directRuns: RunOptions[] = [];
     const nestedLists: Element[] = [];
 
     for (const child of Array.from(li.childNodes)) {
@@ -207,15 +168,13 @@ function parseHtmlToParagraphs(html: string): Paragraph[] {
         const childTag = childEl.tagName.toLowerCase();
         if (childTag === 'ul' || childTag === 'ol') {
           nestedLists.push(childEl);
-        } else if (childTag === 'p') {
-          directRuns.push(...extractRuns(childEl));
         } else {
-          directRuns.push(...extractRuns(childEl));
+          directRuns.push(...extractRunOptions(childEl));
         }
       } else if (child.nodeType === Node.TEXT_NODE) {
         const text = child.textContent || '';
         if (text.trim()) {
-          directRuns.push(new TextRun({ text, font: 'Calibri', size: 22 }));
+          directRuns.push({ text, font: 'Calibri', size: 22 });
         }
       }
     }
@@ -224,7 +183,7 @@ function parseHtmlToParagraphs(html: string): Paragraph[] {
       if (listType === 'ul') {
         paragraphs.push(
           new Paragraph({
-            children: directRuns,
+            children: toTextRuns(directRuns),
             bullet: { level },
             spacing: { after: 60 },
           })
@@ -232,7 +191,7 @@ function parseHtmlToParagraphs(html: string): Paragraph[] {
       } else {
         paragraphs.push(
           new Paragraph({
-            children: directRuns,
+            children: toTextRuns(directRuns),
             numbering: { reference: 'default-numbering', level },
             spacing: { after: 60 },
           })
