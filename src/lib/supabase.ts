@@ -82,6 +82,7 @@ export interface Document {
   prompt: string;
   content: string;
   used_knowledge_base?: boolean;
+  knowledge_base_name?: string;
   model_arn?: string;
   model_name?: string;
   citations?: Array<{ text: string; location?: any }>;

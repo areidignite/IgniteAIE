@@ -196,6 +196,11 @@ export function DocumentList({ documents, selectedId, onSelect, onDelete }: Docu
                         {doc.used_knowledge_base ? 'RAG' : 'Direct'}
                       </span>
                     )}
+                    {doc.knowledge_base_name && (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 max-w-[120px] truncate" title={doc.knowledge_base_name}>
+                        {doc.knowledge_base_name}
+                      </span>
+                    )}
                     {doc.model_name && (
                       <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 max-w-[120px] truncate" title={doc.model_name}>
                         {doc.model_name}

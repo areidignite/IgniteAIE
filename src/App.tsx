@@ -663,6 +663,8 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
       setCurrentContent(content);
       setCurrentCitations(citations);
 
+      const selectedKbData = knowledgeBases.find(kb => kb.knowledgeBaseId === selectedKnowledgeBase);
+
       const { data: newDoc, error } = await supabase
         .from('documents')
         .insert({
@@ -671,6 +673,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
           prompt,
           content,
           used_knowledge_base: useKnowledgeBase,
+          knowledge_base_name: useKnowledgeBase ? selectedKbData?.name : null,
           model_arn: selectedModel,
           model_name: selectedModelData?.modelName,
           citations,
@@ -867,6 +870,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
                   prompt={currentPrompt}
                   citations={currentCitations}
                   usedKnowledgeBase={selectedDocument?.used_knowledge_base}
+                  knowledgeBaseName={selectedDocument?.knowledge_base_name}
                   modelName={selectedDocument?.model_name}
                   documentId={selectedDocument?.id}
                   onContentUpdate={handleUpdateDocumentContent}

@@ -7,12 +7,13 @@ interface DocumentViewerProps {
   prompt: string;
   citations?: Array<{ text: string; location?: any }>;
   usedKnowledgeBase?: boolean;
+  knowledgeBaseName?: string;
   modelName?: string;
   documentId?: string;
   onContentUpdate?: (id: string, content: string) => void;
 }
 
-export function DocumentViewer({ content, prompt, citations = [], usedKnowledgeBase, modelName, documentId, onContentUpdate }: DocumentViewerProps) {
+export function DocumentViewer({ content, prompt, citations = [], usedKnowledgeBase, knowledgeBaseName, modelName, documentId, onContentUpdate }: DocumentViewerProps) {
   const [copied, setCopied] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [presignedUrls, setPresignedUrls] = useState<Record<string, string>>({});
@@ -201,6 +202,11 @@ export function DocumentViewer({ content, prompt, citations = [], usedKnowledgeB
                       : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                   }`}>
                     {usedKnowledgeBase ? 'RAG' : 'Direct'}
+                  </span>
+                )}
+                {knowledgeBaseName && (
+                  <span className="text-xs px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 max-w-[150px] truncate" title={knowledgeBaseName}>
+                    {knowledgeBaseName}
                   </span>
                 )}
                 {modelName && (
