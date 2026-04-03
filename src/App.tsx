@@ -14,6 +14,7 @@ import { ResizablePanel } from './components/ResizablePanel';
 import { ResizablePanelHorizontal } from './components/ResizablePanelHorizontal';
 import { S3BucketBrowser } from './components/S3BucketBrowser';
 import { PromptTemplateManager } from './components/PromptTemplateManager';
+import { SaveDocumentDialog } from './components/SaveDocumentDialog';
 import { useTheme } from './hooks/useTheme';
 import {
   fetchTemplates,
@@ -111,6 +112,16 @@ function App() {
   const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
   const [showTemplateManager, setShowTemplateManager] = useState(false);
   const [templateManagerInitialContent, setTemplateManagerInitialContent] = useState<string | undefined>(undefined);
+  const [pendingSaveDoc, setPendingSaveDoc] = useState<{
+    suggestedTitle: string;
+    prompt: string;
+    content: string;
+    citations: Array<{ text: string; location?: any }>;
+    usedKnowledgeBase: boolean;
+    modelArn?: string;
+    modelName?: string;
+  } | null>(null);
+  const [savingDocument, setSavingDocument] = useState(false);
 
   useEffect(() => {
     // Check for storage access
@@ -697,33 +708,60 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
       setCurrentContent(content);
       setCurrentCitations(citations);
 
-      const { data: newDoc, error } = await supabase
-        .from('documents')
-        .insert({
-          user_id: user.id,
-          title: generatedTitle,
-          prompt,
-          content,
-          used_knowledge_base: useKnowledgeBase,
-          model_arn: selectedModel,
-          model_name: selectedModelData?.modelName,
-          citations,
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error saving document:', error);
-      } else {
-        setDocuments([newDoc, ...documents]);
-        setSelectedDocument(newDoc);
-      }
+      setPendingSaveDoc({
+        suggestedTitle: generatedTitle,
+        prompt,
+        content,
+        citations,
+        usedKnowledgeBase: useKnowledgeBase,
+        modelArn: selectedModel,
+        modelName: selectedModelData?.modelName,
+      });
     } catch (error) {
       console.error('Error generating document:', error);
       setError(error instanceof Error ? error.message : 'Failed to generate document. Please check your AWS credentials.');
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handleConfirmSaveDocument = async (title: string) => {
+    if (!user || !pendingSaveDoc) return;
+    setSavingDocument(true);
+    try {
+      const { data: newDoc, error } = await supabase
+        .from('documents')
+        .insert({
+          user_id: user.id,
+          title,
+          prompt: pendingSaveDoc.prompt,
+          content: pendingSaveDoc.content,
+          used_knowledge_base: pendingSaveDoc.usedKnowledgeBase,
+          model_arn: pendingSaveDoc.modelArn,
+          model_name: pendingSaveDoc.modelName,
+          citations: pendingSaveDoc.citations,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error saving document:', error);
+        setError('Failed to save document');
+      } else {
+        setDocuments([newDoc, ...documents]);
+        setSelectedDocument(newDoc);
+      }
+    } catch (err) {
+      console.error('Error saving document:', err);
+      setError('Failed to save document');
+    } finally {
+      setSavingDocument(false);
+      setPendingSaveDoc(null);
+    }
+  };
+
+  const handleCancelSaveDocument = () => {
+    setPendingSaveDoc(null);
   };
 
   const handleSelectDocument = (doc: Document) => {
@@ -767,6 +805,26 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
         setCurrentContent('');
         setCurrentCitations([]);
       }
+    }
+  };
+
+  const handleRenameDocument = async (id: string, newTitle: string) => {
+    const { error } = await supabase
+      .from('documents')
+      .update({ title: newTitle })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error renaming document:', error);
+      setError('Failed to rename document');
+      return;
+    }
+
+    setDocuments(documents.map(doc =>
+      doc.id === id ? { ...doc, title: newTitle } : doc
+    ));
+    if (selectedDocument?.id === id) {
+      setSelectedDocument({ ...selectedDocument, title: newTitle });
     }
   };
 
@@ -947,6 +1005,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
                           selectedId={selectedDocument?.id || null}
                           onSelect={handleSelectDocument}
                           onDelete={handleDeleteDocument}
+                          onRename={handleRenameDocument}
                         />
                       </div>
                     </>
@@ -980,6 +1039,15 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
       </main>
 
       {error && <ErrorDialog error={error} onClose={() => setError(null)} />}
+
+      {pendingSaveDoc && (
+        <SaveDocumentDialog
+          suggestedTitle={pendingSaveDoc.suggestedTitle}
+          onSave={handleConfirmSaveDocument}
+          onCancel={handleCancelSaveDocument}
+          saving={savingDocument}
+        />
+      )}
 
       {showTemplateManager && (
         <PromptTemplateManager

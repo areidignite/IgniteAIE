@@ -1,5 +1,5 @@
-import { FileText, Trash2, Search, X, Filter } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { FileText, Trash2, Search, X, Filter, Pencil, Check } from 'lucide-react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import type { Document } from '../lib/supabase';
 
 type FilterMode = 'all' | 'rag' | 'direct';
@@ -10,14 +10,45 @@ interface DocumentListProps {
   selectedId: string | null;
   onSelect: (doc: Document) => void;
   onDelete: (id: string) => void;
+  onRename?: (id: string, newTitle: string) => void;
 }
 
-export function DocumentList({ documents, selectedId, onSelect, onDelete }: DocumentListProps) {
+export function DocumentList({ documents, selectedId, onSelect, onDelete, onRename }: DocumentListProps) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [sortMode, setSortMode] = useState<SortMode>('newest');
   const [showFilters, setShowFilters] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (renamingId && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [renamingId]);
+
+  const startRename = (e: React.MouseEvent, doc: Document) => {
+    e.stopPropagation();
+    setRenamingId(doc.id);
+    setRenameValue(doc.title);
+  };
+
+  const confirmRename = (e: React.MouseEvent | React.FormEvent) => {
+    e.stopPropagation();
+    if (renamingId && renameValue.trim() && onRename) {
+      onRename(renamingId, renameValue.trim());
+    }
+    setRenamingId(null);
+    setRenameValue('');
+  };
+
+  const cancelRename = () => {
+    setRenamingId(null);
+    setRenameValue('');
+  };
 
   const filteredDocuments = useMemo(() => {
     let results = documents;
@@ -182,7 +213,29 @@ export function DocumentList({ documents, selectedId, onSelect, onDelete }: Docu
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <FileText className="w-4 h-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                    <h3 className="font-medium text-slate-800 dark:text-slate-100 truncate">{doc.title}</h3>
+                    {renamingId === doc.id ? (
+                      <form onSubmit={confirmRename} className="flex items-center gap-1 flex-1 min-w-0">
+                        <input
+                          ref={renameInputRef}
+                          type="text"
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onBlur={cancelRename}
+                          onKeyDown={(e) => { if (e.key === 'Escape') cancelRename(); }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex-1 min-w-0 px-2 py-0.5 text-sm font-medium border border-blue-400 dark:border-blue-500 rounded bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                        <button
+                          type="submit"
+                          onMouseDown={(e) => { e.preventDefault(); confirmRename(e); }}
+                          className="p-0.5 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded transition-colors"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                      </form>
+                    ) : (
+                      <h3 className="font-medium text-slate-800 dark:text-slate-100 truncate">{doc.title}</h3>
+                    )}
                   </div>
                   <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2">{doc.content}</p>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -203,15 +256,26 @@ export function DocumentList({ documents, selectedId, onSelect, onDelete }: Docu
                     )}
                   </div>
                 </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(doc.id);
-                  }}
-                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-all text-red-600 dark:text-red-400"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+                  {onRename && renamingId !== doc.id && (
+                    <button
+                      onClick={(e) => startRename(e, doc)}
+                      className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400"
+                      title="Rename"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(doc.id);
+                    }}
+                    className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors text-red-600 dark:text-red-400"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
