@@ -1,4 +1,4 @@
-import { Save, File as FileEdit, Trash2, Download, ChevronDown, FileText, FileType } from 'lucide-react';
+import { File as FileEdit, Trash2, Download, ChevronDown, FileText, FileType } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { exportToDocx, exportToPdf, exportToTxt } from '../lib/exportDocument';
 import { RichTextEditor } from './RichTextEditor';
@@ -6,12 +6,10 @@ import { RichTextEditor } from './RichTextEditor';
 interface WorkspaceEditorProps {
   content: string;
   onChange: (content: string) => void;
-  onSave: () => void;
   onClear: () => void;
-  isSaving: boolean;
 }
 
-export function WorkspaceEditor({ content, onChange, onSave, onClear, isSaving }: WorkspaceEditorProps) {
+export function WorkspaceEditor({ content, onChange, onClear }: WorkspaceEditorProps) {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [exporting, setExporting] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -120,14 +118,6 @@ export function WorkspaceEditor({ content, onChange, onSave, onClear, isSaving }
           >
             <Trash2 className="w-4 h-4" />
             Clear
-          </button>
-          <button
-            onClick={onSave}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:bg-blue-400 dark:disabled:bg-blue-800 text-white rounded-lg transition-colors"
-          >
-            <Save className="w-4 h-4" />
-            {isSaving ? 'Saving...' : 'Save'}
           </button>
         </div>
       </div>

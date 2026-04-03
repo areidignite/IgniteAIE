@@ -1,6 +1,32 @@
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
 
+interface FilePickerAcceptType {
+  description: string;
+  accept: Record<string, string[]>;
+}
+
+async function saveWithPicker(
+  blob: Blob,
+  suggestedName: string,
+  types: FilePickerAcceptType[]
+): Promise<boolean> {
+  if (!('showSaveFilePicker' in window)) return false;
+  try {
+    const handle = await (window as any).showSaveFilePicker({
+      suggestedName,
+      types,
+    });
+    const writable = await handle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    return true;
+  } catch (err: any) {
+    if (err?.name === 'AbortError') return true;
+    return false;
+  }
+}
+
 function getDateSlug() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -270,7 +296,13 @@ export async function exportToDocx(html: string, filename?: string) {
   });
 
   const blob = await Packer.toBlob(doc);
-  saveAs(blob, filename || `document-${getDateSlug()}.docx`);
+  const name = filename || `document-${getDateSlug()}.docx`;
+  const saved = await saveWithPicker(blob, name, [
+    { description: 'Word Document', accept: { 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] } },
+  ]);
+  if (!saved) {
+    saveAs(blob, name);
+  }
 }
 
 export function exportToPdf(html: string) {
@@ -319,15 +351,21 @@ export function exportToPdf(html: string) {
   };
 }
 
-export function exportToTxt(html: string, filename?: string) {
+export async function exportToTxt(html: string, filename?: string) {
   const plainText = htmlToPlainText(html);
   const blob = new Blob([plainText], { type: 'text/plain' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename || `document-${getDateSlug()}.txt`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  const name = filename || `document-${getDateSlug()}.txt`;
+  const saved = await saveWithPicker(blob, name, [
+    { description: 'Text File', accept: { 'text/plain': ['.txt'] } },
+  ]);
+  if (!saved) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 }

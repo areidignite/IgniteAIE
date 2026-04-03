@@ -93,8 +93,6 @@ function App() {
   const [currentCitations, setCurrentCitations] = useState<Array<{ text: string; location?: any }>>([]);
   const [error, setError] = useState<string | null>(null);
   const [workspaceContent, setWorkspaceContent] = useState('');
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
-  const [savingWorkspace, setSavingWorkspace] = useState(false);
   const [models, setModels] = useState<FoundationModel[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>('anthropic.claude-sonnet-4-5-20250929-v1:0');
   const [loadingModels, setLoadingModels] = useState(false);
@@ -199,37 +197,6 @@ function App() {
       console.error('Error loading workspace:', error);
     } else if (data) {
       setWorkspaceContent(data.content || '');
-      setWorkspaceId(data.id);
-    }
-  };
-
-  const saveWorkspace = async () => {
-    if (!user) return;
-
-    setSavingWorkspace(true);
-    try {
-      if (workspaceId) {
-        const { error } = await supabase
-          .from('workspace')
-          .update({ content: workspaceContent })
-          .eq('id', workspaceId);
-
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase
-          .from('workspace')
-          .insert({ user_id: user.id, content: workspaceContent })
-          .select()
-          .single();
-
-        if (error) throw error;
-        if (data) setWorkspaceId(data.id);
-      }
-    } catch (error) {
-      console.error('Error saving workspace:', error);
-      setError('Failed to save workspace');
-    } finally {
-      setSavingWorkspace(false);
     }
   };
 
@@ -507,7 +474,6 @@ function App() {
       setCurrentContent('');
       setCurrentCitations([]);
       setWorkspaceContent('');
-      setWorkspaceId(null);
       setModels([]);
       setSelectedModel('anthropic.claude-sonnet-4-5-20250929-v1:0');
       setValidationResult(null);
@@ -968,9 +934,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
                   <WorkspaceEditor
                     content={workspaceContent}
                     onChange={setWorkspaceContent}
-                    onSave={saveWorkspace}
                     onClear={clearWorkspace}
-                    isSaving={savingWorkspace}
                   />
                 </div>
               }
