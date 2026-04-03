@@ -419,7 +419,8 @@ function App() {
       setKnowledgeBases(kbs);
 
       if (kbs.length > 0 && !selectedKnowledgeBase) {
-        setSelectedKnowledgeBase(kbs[0].knowledgeBaseId);
+        const preferred = kbs.find((kb: KnowledgeBase) => kb.name === 'kb-igniteaie-prototype');
+        setSelectedKnowledgeBase(preferred ? preferred.knowledgeBaseId : kbs[0].knowledgeBaseId);
       }
     } catch (error) {
       console.error('Error fetching knowledge bases:', error);
