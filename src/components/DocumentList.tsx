@@ -1,4 +1,4 @@
-import { FileText, Trash2, Search, X, Filter } from 'lucide-react';
+import { FileText, Trash2, Search, X, Filter, MessageSquareText, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import type { Document } from '../lib/supabase';
 
@@ -18,6 +18,8 @@ export function DocumentList({ documents, selectedId, onSelect, onDelete }: Docu
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [sortMode, setSortMode] = useState<SortMode>('newest');
   const [showFilters, setShowFilters] = useState(false);
+  const [expandedPromptId, setExpandedPromptId] = useState<string | null>(null);
+  const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
 
   const filteredDocuments = useMemo(() => {
     let results = documents;
@@ -65,6 +67,18 @@ export function DocumentList({ documents, selectedId, onSelect, onDelete }: Docu
 
   const handleDragEnd = () => {
     setDraggingId(null);
+  };
+
+  const handleCopyPrompt = (e: React.MouseEvent, docId: string, prompt: string) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(prompt);
+    setCopiedPromptId(docId);
+    setTimeout(() => setCopiedPromptId(null), 2000);
+  };
+
+  const togglePrompt = (e: React.MouseEvent, docId: string) => {
+    e.stopPropagation();
+    setExpandedPromptId(expandedPromptId === docId ? null : docId);
   };
 
   const hasActiveFilters = filterMode !== 'all' || sortMode !== 'newest';
@@ -207,6 +221,47 @@ export function DocumentList({ documents, selectedId, onSelect, onDelete }: Docu
                       </span>
                     )}
                   </div>
+                  {doc.prompt && (
+                    <button
+                      onClick={(e) => togglePrompt(e, doc.id)}
+                      className={`flex items-center gap-1.5 mt-2 px-2 py-1 text-xs font-medium rounded-md transition-all ${
+                        expandedPromptId === doc.id
+                          ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300'
+                          : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-700/60 dark:text-slate-400 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      <MessageSquareText className="w-3 h-3" />
+                      <span>Prompt</span>
+                      {expandedPromptId === doc.id ? (
+                        <ChevronUp className="w-3 h-3" />
+                      ) : (
+                        <ChevronDown className="w-3 h-3" />
+                      )}
+                    </button>
+                  )}
+                  {expandedPromptId === doc.id && doc.prompt && (
+                    <div
+                      className="mt-2 relative rounded-md bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 overflow-hidden"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="px-3 py-2 pr-9">
+                        <p className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed break-words">
+                          {doc.prompt}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => handleCopyPrompt(e, doc.id, doc.prompt)}
+                        className="absolute top-1.5 right-1.5 p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                        title="Copy prompt"
+                      >
+                        {copiedPromptId === doc.id ? (
+                          <Check className="w-3.5 h-3.5 text-green-500" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={(e) => {
