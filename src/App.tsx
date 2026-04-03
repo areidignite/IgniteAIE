@@ -13,7 +13,16 @@ import { KnowledgeBaseSelector } from './components/KnowledgeBaseSelector';
 import { ResizablePanel } from './components/ResizablePanel';
 import { ResizablePanelHorizontal } from './components/ResizablePanelHorizontal';
 import { S3BucketBrowser } from './components/S3BucketBrowser';
+import { PromptTemplateManager } from './components/PromptTemplateManager';
 import { useTheme } from './hooks/useTheme';
+import {
+  fetchTemplates,
+  createTemplate,
+  updateTemplate,
+  deleteTemplate,
+  incrementUsageCount,
+  type PromptTemplate,
+} from './lib/promptTemplates';
 
 interface FoundationModel {
   modelArn: string;
@@ -99,6 +108,9 @@ function App() {
   const [activeTab, setActiveTab] = useState<'documents' | 's3-browser'>('documents');
   const [prompt, setPrompt] = useState('');
   const [storageBlocked, setStorageBlocked] = useState(false);
+  const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
+  const [showTemplateManager, setShowTemplateManager] = useState(false);
+  const [templateManagerInitialMode, setTemplateManagerInitialMode] = useState<'list' | 'create'>('list');
 
   useEffect(() => {
     // Check for storage access
@@ -145,6 +157,7 @@ function App() {
       loadWorkspace();
       fetchModels();
       fetchKnowledgeBases();
+      loadTemplates();
     }
   }, [user]);
 
@@ -222,6 +235,57 @@ function App() {
 
   const clearWorkspace = () => {
     setWorkspaceContent('');
+  };
+
+  const loadTemplates = async () => {
+    const data = await fetchTemplates();
+    setPromptTemplates(data);
+  };
+
+  const handleCreateTemplate = async (
+    template: Omit<PromptTemplate, 'id' | 'user_id' | 'usage_count' | 'created_at' | 'updated_at'>
+  ) => {
+    if (!user) return;
+    const created = await createTemplate(user.id, template);
+    if (created) {
+      setPromptTemplates(prev => [created, ...prev]);
+    }
+  };
+
+  const handleUpdateTemplate = async (id: string, updates: Partial<PromptTemplate>) => {
+    const updated = await updateTemplate(id, updates);
+    if (updated) {
+      setPromptTemplates(prev => prev.map(t => (t.id === id ? updated : t)));
+    }
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    const success = await deleteTemplate(id);
+    if (success) {
+      setPromptTemplates(prev => prev.filter(t => t.id !== id));
+    }
+  };
+
+  const handleToggleFavorite = async (id: string, isFavorite: boolean) => {
+    await handleUpdateTemplate(id, { is_favorite: isFavorite });
+  };
+
+  const handleSelectTemplate = (template: PromptTemplate) => {
+    setPrompt(template.content);
+    incrementUsageCount(template.id);
+    setPromptTemplates(prev =>
+      prev.map(t => (t.id === template.id ? { ...t, usage_count: t.usage_count + 1 } : t))
+    );
+  };
+
+  const handleSaveCurrentPrompt = () => {
+    setTemplateManagerInitialMode('create');
+    setShowTemplateManager(true);
+  };
+
+  const handleManageTemplates = () => {
+    setTemplateManagerInitialMode('list');
+    setShowTemplateManager(true);
   };
 
   const fetchModels = async () => {
@@ -450,6 +514,7 @@ function App() {
       setKnowledgeBases([]);
       setSelectedKnowledgeBase('');
       setUseKnowledgeBase(true);
+      setPromptTemplates([]);
       setUser(null);
       setSession(null);
     }
@@ -824,6 +889,10 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
                   prompt={prompt}
                   onPromptChange={setPrompt}
                   selectedKnowledgeBase={selectedKnowledgeBase}
+                  templates={promptTemplates}
+                  onSelectTemplate={handleSelectTemplate}
+                  onManageTemplates={handleManageTemplates}
+                  onSaveCurrentPrompt={handleSaveCurrentPrompt}
                 />
               </div>
               <div className="p-4">
@@ -911,6 +980,21 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
       </main>
 
       {error && <ErrorDialog error={error} onClose={() => setError(null)} />}
+
+      {showTemplateManager && (
+        <PromptTemplateManager
+          templates={promptTemplates}
+          onClose={() => setShowTemplateManager(false)}
+          onSave={handleCreateTemplate}
+          onUpdate={handleUpdateTemplate}
+          onDelete={handleDeleteTemplate}
+          onToggleFavorite={handleToggleFavorite}
+          onUseTemplate={(template) => {
+            handleSelectTemplate(template);
+            setShowTemplateManager(false);
+          }}
+        />
+      )}
 
       {showInfoDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center z-50 p-4">

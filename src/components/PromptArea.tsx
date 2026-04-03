@@ -1,6 +1,8 @@
 import { useState, useRef } from 'react';
 import { Send, Loader2, Sparkles, Paperclip, X } from 'lucide-react';
 import { supabase, getValidSession } from '../lib/supabase';
+import { PromptTemplateSelector } from './PromptTemplateSelector';
+import type { PromptTemplate } from '../lib/promptTemplates';
 
 interface AttachedFile {
   name: string;
@@ -16,9 +18,13 @@ interface PromptAreaProps {
   prompt: string;
   onPromptChange: (prompt: string) => void;
   selectedKnowledgeBase?: string;
+  templates: PromptTemplate[];
+  onSelectTemplate: (template: PromptTemplate) => void;
+  onManageTemplates: () => void;
+  onSaveCurrentPrompt: () => void;
 }
 
-export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPrompt, prompt, onPromptChange, selectedKnowledgeBase }: PromptAreaProps) {
+export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPrompt, prompt, onPromptChange, selectedKnowledgeBase, templates, onSelectTemplate, onManageTemplates, onSaveCurrentPrompt }: PromptAreaProps) {
   const [companyVoice, setCompanyVoice] = useState<'ignite-it' | 'ignite-action'>('ignite-it');
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -146,6 +152,14 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
       )}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
+          <PromptTemplateSelector
+            templates={templates}
+            onSelect={onSelectTemplate}
+            onManage={onManageTemplates}
+            onSaveCurrentPrompt={onSaveCurrentPrompt}
+            hasPromptText={!!prompt.trim()}
+            disabled={isLoading || isImprovingPrompt || uploadingFile}
+          />
           {onImprovePrompt && (
             <>
               <button
