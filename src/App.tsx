@@ -772,8 +772,8 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
                 className="h-16 w-16 object-contain"
               />
               <div>
-                <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">IgniteAIE Document Builder</h1>
-                <p className="text-base text-slate-500 dark:text-slate-400">Ignite AI Engine powered document generation</p>
+                <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">Ignite AI Studio</h1>
+                <p className="text-base text-slate-500 dark:text-slate-400">Build knowledge. Generate insight. Create content.</p>
               </div>
             </div>
             <div className="flex items-center gap-2 ml-1">
@@ -837,7 +837,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col">
               <div className="p-4 border-b border-slate-200 dark:border-slate-700">
                 <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Ignite AI Engine</h2>
+                  <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Ignite AI Studio</h2>
                   <button
                     type="button"
                     onClick={() => {
@@ -975,7 +975,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
         <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">How Document Builder Works</h2>
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">How Ignite AI Studio Works</h2>
               <button
                 onClick={() => setShowInfoDialog(false)}
                 className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"

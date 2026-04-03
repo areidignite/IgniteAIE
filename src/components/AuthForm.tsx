@@ -111,8 +111,8 @@ export function AuthForm({ onSignIn, onSignUp, onResetPassword }: AuthFormProps)
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 dark:bg-blue-500 rounded-xl mb-4">
             <FileText className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100 mb-2">Document Builder</h1>
-          <p className="text-slate-600 dark:text-slate-400">AI-powered document generation</p>
+          <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100 mb-2">Ignite AI Studio</h1>
+          <p className="text-slate-600 dark:text-slate-400">Build knowledge. Generate insight. Create content.</p>
         </div>
 
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-8">
