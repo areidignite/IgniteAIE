@@ -304,16 +304,19 @@ function App() {
           setSelectedModel(sortedModels[0].modelArn);
         }
       }
+
+      setLoadingModels(false);
+      validateModels(sortedModels);
     } catch (error) {
       console.error('Error fetching models:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch models');
-    } finally {
       setLoadingModels(false);
     }
   };
 
-  const validateModels = async () => {
-    if (!user || models.length === 0) return;
+  const validateModels = async (modelsToCheck?: FoundationModel[]) => {
+    const targetModels = modelsToCheck || models;
+    if (!user || targetModels.length === 0) return;
 
     setValidatingModels(true);
     setValidationResult(null);
@@ -325,7 +328,7 @@ function App() {
         throw new Error('No authentication token');
       }
 
-      const modelsToValidate = models.map(m => ({
+      const modelsToValidate = targetModels.map(m => ({
         modelId: m.modelId,
         modelArn: m.modelArn,
         inferenceProfileId: m.inferenceProfileId,
@@ -352,7 +355,7 @@ function App() {
       const data = await response.json();
       const results: Record<string, boolean> = data.results;
 
-      const accessibleModels = models.filter(m => results[m.modelArn] !== false);
+      const accessibleModels = targetModels.filter(m => results[m.modelArn] !== false);
       setModels(accessibleModels);
       setValidationResult({
         accessible: data.summary.accessible,
