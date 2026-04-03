@@ -15,6 +15,7 @@ import { ResizablePanelHorizontal } from './components/ResizablePanelHorizontal'
 import { S3BucketBrowser } from './components/S3BucketBrowser';
 import { PromptTemplateManager } from './components/PromptTemplateManager';
 import { useTheme } from './hooks/useTheme';
+import { useAutoSaveWorkspace } from './hooks/useAutoSaveWorkspace';
 import {
   fetchTemplates,
   createTemplate,
@@ -109,6 +110,7 @@ function App() {
   const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
   const [showTemplateManager, setShowTemplateManager] = useState(false);
   const [templateManagerInitialContent, setTemplateManagerInitialContent] = useState<string | undefined>(undefined);
+  const { saveStatus: workspaceSaveStatus, saveNow: saveWorkspaceNow } = useAutoSaveWorkspace(user?.id, workspaceContent);
 
   useEffect(() => {
     // Check for storage access
@@ -127,14 +129,12 @@ function App() {
 
     // Initialize session using onAuthStateChange (recommended approach)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event);
-      console.log('Session user:', session?.user?.email || 'no user');
-      console.log('Session token (first 20 chars):', session?.access_token?.substring(0, 20) || 'no token');
-
       if (event === 'SIGNED_OUT') {
         setUser(null);
         setSession(null);
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+      } else if (event === 'TOKEN_REFRESHED') {
+        setSession(session);
+      } else if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
         setUser(session?.user ?? null);
         setSession(session);
       } else if (event === 'USER_UPDATED') {
@@ -142,7 +142,6 @@ function App() {
         setSession(session);
       }
 
-      // Mark loading as complete after first event
       setLoading(false);
     });
 
@@ -943,6 +942,8 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
                     content={workspaceContent}
                     onChange={setWorkspaceContent}
                     onClear={clearWorkspace}
+                    saveStatus={workspaceSaveStatus}
+                    onSave={saveWorkspaceNow}
                   />
                 </div>
               }

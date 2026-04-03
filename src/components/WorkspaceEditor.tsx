@@ -1,4 +1,4 @@
-import { File as FileEdit, Trash2, Download, ChevronDown, FileText, FileType } from 'lucide-react';
+import { File as FileEdit, Trash2, Download, ChevronDown, FileText, FileType, Save, Check, Loader2, AlertCircle } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { exportToDocx, exportToPdf, exportToTxt } from '../lib/exportDocument';
 import { RichTextEditor } from './RichTextEditor';
@@ -7,9 +7,30 @@ interface WorkspaceEditorProps {
   content: string;
   onChange: (content: string) => void;
   onClear: () => void;
+  saveStatus?: 'idle' | 'saving' | 'saved' | 'error';
+  onSave?: () => void;
 }
 
-export function WorkspaceEditor({ content, onChange, onClear }: WorkspaceEditorProps) {
+function SaveStatusIndicator({ status }: { status: 'idle' | 'saving' | 'saved' | 'error' }) {
+  if (status === 'idle') return null;
+
+  const config = {
+    saving: { icon: Loader2, text: 'Saving...', className: 'text-slate-400 dark:text-slate-500', animate: true },
+    saved: { icon: Check, text: 'Saved', className: 'text-green-500 dark:text-green-400', animate: false },
+    error: { icon: AlertCircle, text: 'Save failed', className: 'text-red-500 dark:text-red-400', animate: false },
+  }[status];
+
+  const Icon = config.icon;
+
+  return (
+    <span className={`flex items-center gap-1 text-xs ${config.className} transition-opacity duration-300`}>
+      <Icon className={`w-3 h-3 ${config.animate ? 'animate-spin' : ''}`} />
+      {config.text}
+    </span>
+  );
+}
+
+export function WorkspaceEditor({ content, onChange, onClear, saveStatus = 'idle', onSave }: WorkspaceEditorProps) {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [exporting, setExporting] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -61,11 +82,24 @@ export function WorkspaceEditor({ content, onChange, onClear }: WorkspaceEditorP
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-200 dark:border-slate-700">
-        <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
-          <FileEdit className="w-5 h-5" />
-          <span className="font-medium">Create Document</span>
+        <div className="flex items-center gap-3 text-slate-700 dark:text-slate-200">
+          <div className="flex items-center gap-2">
+            <FileEdit className="w-5 h-5" />
+            <span className="font-medium">Create Document</span>
+          </div>
+          <SaveStatusIndicator status={saveStatus} />
         </div>
         <div className="flex items-center gap-2">
+          {onSave && (
+            <button
+              onClick={onSave}
+              disabled={isContentEmpty() || saveStatus === 'saving'}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:bg-blue-300 dark:disabled:bg-blue-800 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+            >
+              <Save className="w-4 h-4" />
+              Save
+            </button>
+          )}
           <div className="relative" ref={exportMenuRef}>
             <button
               onClick={() => setShowExportMenu(!showExportMenu)}
