@@ -220,25 +220,25 @@ export function DocumentList({ documents, selectedId, onSelect, onDelete }: Docu
                         {doc.model_name}
                       </span>
                     )}
+                    {doc.prompt && (
+                      <button
+                        onClick={(e) => togglePrompt(e, doc.id)}
+                        className={`flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium rounded transition-all ${
+                          expandedPromptId === doc.id
+                            ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300'
+                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-700/60 dark:text-slate-400 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        <MessageSquareText className="w-3 h-3" />
+                        <span>Prompt</span>
+                        {expandedPromptId === doc.id ? (
+                          <ChevronUp className="w-3 h-3" />
+                        ) : (
+                          <ChevronDown className="w-3 h-3" />
+                        )}
+                      </button>
+                    )}
                   </div>
-                  {doc.prompt && (
-                    <button
-                      onClick={(e) => togglePrompt(e, doc.id)}
-                      className={`flex items-center gap-1.5 mt-2 px-2 py-1 text-xs font-medium rounded-md transition-all ${
-                        expandedPromptId === doc.id
-                          ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300'
-                          : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-700/60 dark:text-slate-400 dark:hover:bg-slate-700'
-                      }`}
-                    >
-                      <MessageSquareText className="w-3 h-3" />
-                      <span>Prompt</span>
-                      {expandedPromptId === doc.id ? (
-                        <ChevronUp className="w-3 h-3" />
-                      ) : (
-                        <ChevronDown className="w-3 h-3" />
-                      )}
-                    </button>
-                  )}
                   {expandedPromptId === doc.id && doc.prompt && (
                     <div
                       className="mt-2 relative rounded-md bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 overflow-hidden"
