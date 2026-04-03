@@ -47,9 +47,9 @@ export function WorkspaceEditor({ content, onChange, onClear }: WorkspaceEditorP
       if (format === 'docx') {
         await exportToDocx(htmlContent);
       } else if (format === 'pdf') {
-        exportToPdf(htmlContent);
+        await exportToPdf(htmlContent);
       } else {
-        exportToTxt(htmlContent);
+        await exportToTxt(htmlContent);
       }
     } finally {
       setExporting(false);
@@ -95,7 +95,7 @@ export function WorkspaceEditor({ content, onChange, onClear }: WorkspaceEditorP
                   <FileText className="w-4 h-4 text-red-600 dark:text-red-400" />
                   <div className="text-left">
                     <div className="font-medium">PDF (.pdf)</div>
-                    <div className="text-xs text-slate-400 dark:text-slate-500">Print to PDF</div>
+                    <div className="text-xs text-slate-400 dark:text-slate-500">Export as PDF</div>
                   </div>
                 </button>
                 <div className="border-t border-slate-200 dark:border-slate-600 my-1" />

@@ -1,5 +1,6 @@
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
+import html2pdf from 'html2pdf.js';
 
 interface FilePickerAcceptType {
   description: string;
@@ -305,50 +306,54 @@ export async function exportToDocx(html: string, filename?: string) {
   }
 }
 
-export function exportToPdf(html: string) {
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) return;
-
-  printWindow.document.write(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Document Export</title>
+export async function exportToPdf(html: string, filename?: string) {
+  const container = document.createElement('div');
+  container.style.cssText = 'position:absolute;left:-9999px;top:0;width:700px;';
+  container.innerHTML = `
+    <div style="
+      font-family: 'Segoe UI', Calibri, Arial, sans-serif;
+      font-size: 11pt;
+      line-height: 1.6;
+      color: #1e293b;
+    ">
       <style>
-        @page { margin: 1in; }
-        body {
-          font-family: 'Segoe UI', Calibri, Arial, sans-serif;
-          font-size: 11pt;
-          line-height: 1.6;
-          color: #1e293b;
-          max-width: 100%;
-          margin: 0;
-          padding: 0;
-        }
-        h1 { font-size: 18pt; margin: 16pt 0 8pt; color: #0f172a; font-weight: 700; }
-        h2 { font-size: 14pt; margin: 14pt 0 6pt; color: #1e293b; font-weight: 600; }
-        h3 { font-size: 12pt; margin: 12pt 0 4pt; color: #334155; font-weight: 600; }
-        p { margin: 0 0 8pt; }
-        ul, ol { margin: 4pt 0 8pt 20pt; }
-        li { margin-bottom: 4pt; }
-        mark { background-color: #fef08a; padding: 0 2px; }
-        blockquote { border-left: 3px solid #cbd5e1; margin: 8pt 0; padding: 4pt 0 4pt 12pt; color: #475569; }
-        hr { border: none; border-top: 1px solid #e2e8f0; margin: 12pt 0; }
-        @media print {
-          body { -webkit-print-color-adjust: exact; }
-        }
+        .pdf-export h1 { font-size: 18pt; margin: 16pt 0 8pt; color: #0f172a; font-weight: 700; }
+        .pdf-export h2 { font-size: 14pt; margin: 14pt 0 6pt; color: #1e293b; font-weight: 600; }
+        .pdf-export h3 { font-size: 12pt; margin: 12pt 0 4pt; color: #334155; font-weight: 600; }
+        .pdf-export p { margin: 0 0 8pt; }
+        .pdf-export ul, .pdf-export ol { margin: 4pt 0 8pt 20pt; }
+        .pdf-export li { margin-bottom: 4pt; }
+        .pdf-export mark { background-color: #fef08a; padding: 0 2px; }
+        .pdf-export blockquote { border-left: 3px solid #cbd5e1; margin: 8pt 0; padding: 4pt 0 4pt 12pt; color: #475569; }
+        .pdf-export hr { border: none; border-top: 1px solid #e2e8f0; margin: 12pt 0; }
       </style>
-    </head>
-    <body>${html}</body>
-    </html>
-  `);
-  printWindow.document.close();
+      <div class="pdf-export">${html}</div>
+    </div>
+  `;
+  document.body.appendChild(container);
 
-  printWindow.onload = () => {
-    setTimeout(() => {
-      printWindow.print();
-    }, 250);
-  };
+  try {
+    const name = filename || `document-${getDateSlug()}.pdf`;
+    const blob: Blob = await html2pdf()
+      .set({
+        margin: [15, 15, 15, 15],
+        filename: name,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      })
+      .from(container.firstElementChild)
+      .outputPdf('blob');
+
+    const saved = await saveWithPicker(blob, name, [
+      { description: 'PDF Document', accept: { 'application/pdf': ['.pdf'] } },
+    ]);
+    if (!saved) {
+      saveAs(blob, name);
+    }
+  } finally {
+    document.body.removeChild(container);
+  }
 }
 
 export async function exportToTxt(html: string, filename?: string) {
