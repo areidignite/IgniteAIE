@@ -611,7 +611,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
       const selectedModelData = models.find(m => m.modelArn === selectedModel);
 
       if (useKnowledgeBase && selectedModelData && !isModelSupportedForKnowledgeBase(selectedModelData.modelId)) {
-        throw new Error(`${selectedModelData.modelName} is not supported for Knowledge Base queries. Please either:\n1. Disable "Use Knowledge Base" checkbox, or\n2. Select a different model that supports Knowledge Bases (such as Llama 3.2 11B or 90B, Claude, Nova, etc.)`);
+        throw new Error(`${selectedModelData.modelName} is not supported for Knowledge Base queries. Please either:\n1. Select "None - Direct AI Query" from the Knowledge Base dropdown, or\n2. Select a different model that supports Knowledge Bases (such as Llama 3.2 11B or 90B, Claude, Nova, etc.)`);
       }
 
       console.log('Selected model:', selectedModel);
@@ -794,24 +794,14 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
             </div>
           </div>
           <div className="flex-1 space-y-3">
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="use-kb"
-                checked={useKnowledgeBase}
-                onChange={(e) => setUseKnowledgeBase(e.target.checked)}
-                className="w-4 h-4 text-blue-600 border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500 focus:ring-2"
-              />
-              <label htmlFor="use-kb" className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
-                Use Knowledge Base
-              </label>
-            </div>
             <KnowledgeBaseSelector
               selectedKnowledgeBase={selectedKnowledgeBase}
               onKnowledgeBaseChange={setSelectedKnowledgeBase}
+              onUseKnowledgeBaseChange={setUseKnowledgeBase}
               onRefresh={fetchKnowledgeBases}
               knowledgeBases={knowledgeBases}
               isLoading={loadingKnowledgeBases}
+              useKnowledgeBase={useKnowledgeBase}
             />
             <ModelSelector
               selectedModel={selectedModel}
@@ -1002,7 +992,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
 
                   <div>
                     <h4 className="font-medium text-slate-700 dark:text-slate-200 mb-1">3. Knowledge Base RAG Process</h4>
-                    <p className="text-sm mb-2">When "Use Knowledge Base" is checked, the edge function calls AWS Bedrock's retrieveAndGenerate API, which automatically performs:</p>
+                    <p className="text-sm mb-2">When a knowledge base is selected from the dropdown, the edge function calls AWS Bedrock's retrieveAndGenerate API, which automatically performs:</p>
                     <ul className="list-disc list-inside text-sm space-y-1 ml-4">
                       <li><strong>Retrieval:</strong> Searches the Knowledge Base vector store for the 5 most relevant documents</li>
                       <li><strong>Context Assembly:</strong> Retrieves the relevant text chunks from those documents</li>
@@ -1031,7 +1021,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                 <h4 className="font-medium text-blue-900 dark:text-blue-300 mb-2">Without Knowledge Base</h4>
                 <p className="text-sm text-blue-800 dark:text-blue-300">
-                  When "Use Knowledge Base" is unchecked, your query goes directly to the selected foundation model via Bedrock's Converse API, without any document retrieval - just a standard LLM conversation.
+                  When "None - Direct AI Query" is selected in the Knowledge Base dropdown, your query goes directly to the selected foundation model via Bedrock's Converse API, without any document retrieval - just a standard LLM conversation.
                 </p>
               </div>
             </div>
