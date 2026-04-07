@@ -149,14 +149,14 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (user) {
+    if (user && session?.access_token) {
       loadDocuments();
       loadWorkspace();
       fetchModels();
       fetchKnowledgeBases();
       loadTemplates();
     }
-  }, [user]);
+  }, [user, session]);
 
   useEffect(() => {
     if (useKnowledgeBase && models.length > 0) {
