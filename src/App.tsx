@@ -687,7 +687,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
       if (error) {
         console.error('Error saving document:', error);
       } else {
-        setDocuments([newDoc, ...documents]);
+        setDocuments(prev => [newDoc, ...prev]);
         setSelectedDocument(newDoc);
       }
     } catch (error) {
@@ -717,7 +717,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
       return;
     }
 
-    setDocuments(documents.map(doc =>
+    setDocuments(prev => prev.map(doc =>
       doc.id === id ? { ...doc, content: newContent } : doc
     ));
     if (selectedDocument?.id === id) {
@@ -732,7 +732,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
     if (error) {
       console.error('Error deleting document:', error);
     } else {
-      setDocuments(documents.filter(doc => doc.id !== id));
+      setDocuments(prev => prev.filter(doc => doc.id !== id));
       if (selectedDocument?.id === id) {
         setSelectedDocument(null);
         setCurrentPrompt('');
