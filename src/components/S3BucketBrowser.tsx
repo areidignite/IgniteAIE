@@ -88,7 +88,11 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
   };
 
   useEffect(() => {
-    fetchObjects(true);
+    if (selectedKnowledgeBase) {
+      fetchObjects(true);
+    } else {
+      setAllObjects([]);
+    }
   }, [selectedKnowledgeBase]);
 
   const getCurrentFolderItems = (): FolderItem[] => {
@@ -558,7 +562,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
           />
           {filterText && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-700 px-1">
-              {filteredObjects.length} of {allObjects.length}
+              {items.length} of {allObjects.length}
             </div>
           )}
         </div>
