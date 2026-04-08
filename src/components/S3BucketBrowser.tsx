@@ -109,7 +109,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
       const relativePath = obj.Key.substring(prefix.length);
       const slashIndex = relativePath.indexOf('/');
 
-      if (slashIndex === -1 && relativePath) {
+      if (slashIndex === -1 && relativePath && relativePath !== '.folder') {
         items.set(obj.Key, {
           name: relativePath,
           path: obj.Key,
