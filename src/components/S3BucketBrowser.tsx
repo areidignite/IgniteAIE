@@ -789,7 +789,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
       ) : (
         <div className="space-y-2">
           {items.map((item) => {
-            const fileCount = item.isFolder ? getFilesInFolder(item.path).length : 0;
+            const fileCount = item.isFolder ? getFilesInFolder(item.path).filter(obj => !obj.Key.endsWith('/.folder')).length : 0;
 
             return (
               <div
