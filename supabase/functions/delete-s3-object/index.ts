@@ -214,10 +214,11 @@ Deno.serve(async (req: Request) => {
       service: "s3",
       accessKeyId: awsAccessKeyId,
       secretAccessKey: awsSecretAccessKey,
+      extraHeaders: {
+        "Content-Type": "application/xml",
+        "Content-MD5": contentMd5,
+      },
     });
-
-    s3Headers["Content-Type"] = "application/xml";
-    s3Headers["Content-MD5"] = contentMd5;
 
     console.log("Sending multi-object delete request to:", s3Url);
 

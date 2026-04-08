@@ -6,6 +6,7 @@ interface SignRequestOptions {
   service: string;
   accessKeyId: string;
   secretAccessKey: string;
+  extraHeaders?: Record<string, string>;
 }
 
 async function sha256(data: string): Promise<ArrayBuffer> {
@@ -73,7 +74,7 @@ function getCanonicalQueryString(searchParams: URLSearchParams): string {
 }
 
 export async function signRequest(options: SignRequestOptions): Promise<Record<string, string>> {
-  const { method, url, body, region, service, accessKeyId, secretAccessKey } = options;
+  const { method, url, body, region, service, accessKeyId, secretAccessKey, extraHeaders } = options;
 
   const urlObj = new URL(url);
   const host = urlObj.hostname;
@@ -86,8 +87,21 @@ export async function signRequest(options: SignRequestOptions): Promise<Record<s
 
   const payloadHash = toHex(await sha256(body));
 
-  const canonicalHeaders = `host:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`;
-  const signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+  const headersMap: Record<string, string> = {
+    'host': host,
+    'x-amz-content-sha256': payloadHash,
+    'x-amz-date': amzDate,
+  };
+
+  if (extraHeaders) {
+    for (const [k, v] of Object.entries(extraHeaders)) {
+      headersMap[k.toLowerCase()] = v;
+    }
+  }
+
+  const sortedHeaderKeys = Object.keys(headersMap).sort();
+  const canonicalHeaders = sortedHeaderKeys.map(k => `${k}:${headersMap[k]}`).join('\n') + '\n';
+  const signedHeaders = sortedHeaderKeys.join(';');
 
   const canonicalRequest = `${method}\n${canonicalPath}\n${canonicalQueryString}\n${canonicalHeaders}\n${signedHeaders}\n${payloadHash}`;
 
@@ -100,10 +114,18 @@ export async function signRequest(options: SignRequestOptions): Promise<Record<s
 
   const authorizationHeader = `${algorithm} Credential=${accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
 
-  return {
+  const result: Record<string, string> = {
     'Host': host,
     'X-Amz-Date': amzDate,
     'X-Amz-Content-Sha256': payloadHash,
     'Authorization': authorizationHeader,
   };
+
+  if (extraHeaders) {
+    for (const [k, v] of Object.entries(extraHeaders)) {
+      result[k] = v;
+    }
+  }
+
+  return result;
 }
