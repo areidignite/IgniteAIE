@@ -8,6 +8,21 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+async function md5Base64(data: string): Promise<string> {
+  const { createHash } = await import("node:crypto");
+  const hash = createHash("md5").update(data, "utf8").digest("base64");
+  return hash;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -179,41 +194,76 @@ Deno.serve(async (req: Request) => {
 
     console.log("Using S3 bucket:", bucketName, "with prefix:", prefix);
 
+    const fullKeys = keysToDelete.map((k: string) => prefix ? `${prefix}${k}` : k);
+    console.log("Deleting objects with keys:", fullKeys);
+
+    const objectElements = fullKeys
+      .map((k: string) => `<Object><Key>${escapeXml(k)}</Key></Object>`)
+      .join("");
+    const deleteXmlBody = `<?xml version="1.0" encoding="UTF-8"?><Delete><Quiet>false</Quiet>${objectElements}</Delete>`;
+
+    const contentMd5 = await md5Base64(deleteXmlBody);
+
+    const s3Url = `https://${bucketName}.s3.${awsRegion}.amazonaws.com/?delete`;
+
+    const s3Headers = await signRequest({
+      method: "POST",
+      url: s3Url,
+      body: deleteXmlBody,
+      region: awsRegion,
+      service: "s3",
+      accessKeyId: awsAccessKeyId,
+      secretAccessKey: awsSecretAccessKey,
+    });
+
+    s3Headers["Content-Type"] = "application/xml";
+    s3Headers["Content-MD5"] = contentMd5;
+
+    console.log("Sending multi-object delete request to:", s3Url);
+
+    const s3Response = await fetch(s3Url, {
+      method: "POST",
+      headers: s3Headers,
+      body: deleteXmlBody,
+    });
+
+    const responseText = await s3Response.text();
+    console.log("S3 delete response status:", s3Response.status, "body:", responseText);
+
+    if (!s3Response.ok) {
+      console.error("S3 multi-object delete error:", {
+        status: s3Response.status,
+        error: responseText,
+      });
+      return new Response(
+        JSON.stringify({
+          error: "Failed to delete S3 objects",
+          failedKeys: keysToDelete,
+          details: responseText,
+        }),
+        {
+          status: 500,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    }
+
     const failed: string[] = [];
+    const errorRegex = /<Error><Key>(.*?)<\/Key>.*?<Message>(.*?)<\/Message><\/Error>/gs;
+    let errorMatch;
+    while ((errorMatch = errorRegex.exec(responseText)) !== null) {
+      console.error("Failed to delete key:", errorMatch[1], "reason:", errorMatch[2]);
+      failed.push(errorMatch[1]);
+    }
+
     let deleted = 0;
-
-    for (const k of keysToDelete) {
-      const fullKey = prefix ? `${prefix}${k}` : k;
-      console.log("Deleting object with key:", fullKey);
-
-      const encodedKey = fullKey.split('/').map((segment: string) => encodeURIComponent(segment)).join('/');
-      const s3UrlString = `https://${bucketName}.s3.${awsRegion}.amazonaws.com/${encodedKey}`;
-
-      const s3Headers = await signRequest({
-        method: "DELETE",
-        url: s3UrlString,
-        body: "",
-        region: awsRegion,
-        service: "s3",
-        accessKeyId: awsAccessKeyId,
-        secretAccessKey: awsSecretAccessKey,
-      });
-
-      const s3Response = await fetch(s3UrlString, {
-        method: "DELETE",
-        headers: s3Headers,
-      });
-
-      if (!s3Response.ok) {
-        const errorText = await s3Response.text();
-        console.error("S3 DELETE error for key:", fullKey, {
-          status: s3Response.status,
-          error: errorText,
-        });
-        failed.push(k);
-      } else {
-        deleted++;
-      }
+    const deletedRegex = /<Deleted><Key>(.*?)<\/Key>/g;
+    let deletedMatch;
+    while ((deletedMatch = deletedRegex.exec(responseText)) !== null) {
+      deleted++;
     }
 
     if (failed.length > 0 && deleted === 0) {
