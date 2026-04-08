@@ -186,7 +186,8 @@ Deno.serve(async (req: Request) => {
       const fullKey = prefix ? `${prefix}${k}` : k;
       console.log("Deleting object with key:", fullKey);
 
-      const s3UrlString = `https://${bucketName}.s3.${awsRegion}.amazonaws.com/${fullKey}`;
+      const encodedKey = fullKey.split('/').map((segment: string) => encodeURIComponent(segment)).join('/');
+      const s3UrlString = `https://${bucketName}.s3.${awsRegion}.amazonaws.com/${encodedKey}`;
 
       const s3Headers = await signRequest({
         method: "DELETE",
