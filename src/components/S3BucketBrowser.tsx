@@ -1,4 +1,4 @@
-import { FolderOpen, File, Download, RefreshCw, Upload, Trash2, RefreshCcw, X, Copy, ChevronRight, Home } from 'lucide-react';
+import { FolderOpen, FolderPlus, File, Download, RefreshCw, Upload, Trash2, RefreshCcw, X, Copy, ChevronRight, Home, Check } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { supabase, getValidSession } from '../lib/supabase';
 import { RepositoryBrowser } from './RepositoryBrowser';
@@ -37,7 +37,11 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
   const [syncStatus, setSyncStatus] = useState<string>('');
   const [showRepositoryBrowser, setShowRepositoryBrowser] = useState(false);
   const [currentPath, setCurrentPath] = useState<string>('');
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [showNewFolderInput, setShowNewFolderInput] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const statusCheckIntervalRef = useRef<number | null>(null);
 
   const fetchObjects = async (resetList = false) => {
@@ -347,6 +351,80 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
     }
   };
 
+  const handleCreateFolder = async () => {
+    const trimmed = newFolderName.trim();
+    if (!trimmed) return;
+
+    if (/[/\\#%&{}<>*?$!'":@+`|=]/.test(trimmed)) {
+      onError('Folder name contains invalid characters');
+      return;
+    }
+
+    const existingItems = getCurrentFolderItems();
+    if (existingItems.some(item => item.name === trimmed)) {
+      onError('A file or folder with that name already exists');
+      return;
+    }
+
+    setCreatingFolder(true);
+    try {
+      const session = await getValidSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        throw new Error('No authentication token');
+      }
+
+      const folderKey = currentPath
+        ? `${currentPath}/${trimmed}/.folder`
+        : `${trimmed}/.folder`;
+
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-upload-url`;
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          key: folderKey,
+          contentType: 'application/x-directory',
+          knowledgeBaseId: selectedKnowledgeBase,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || error.message || 'Failed to create folder');
+      }
+
+      const data = await response.json();
+
+      const uploadResponse = await fetch(data.url, {
+        method: 'PUT',
+        body: new Blob([], { type: 'application/x-directory' }),
+        headers: {
+          'Content-Type': 'application/x-directory',
+        },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to create folder in S3');
+      }
+
+      setNewFolderName('');
+      setShowNewFolderInput(false);
+      await fetchObjects(true);
+    } catch (error) {
+      console.error('Error creating folder:', error);
+      onError(error instanceof Error ? error.message : 'Failed to create folder');
+    } finally {
+      setCreatingFolder(false);
+    }
+  };
+
   const checkIngestionStatus = async (
     knowledgeBaseId: string,
     dataSourceId: string,
@@ -510,6 +588,17 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
             Upload
           </button>
           <button
+            onClick={() => {
+              setShowNewFolderInput(true);
+              setTimeout(() => folderInputRef.current?.focus(), 50);
+            }}
+            disabled={creatingFolder}
+            className="px-4 py-2 bg-sky-600 dark:bg-sky-500 text-white rounded-lg hover:bg-sky-700 dark:hover:bg-sky-600 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
+          >
+            <FolderPlus className="w-4 h-4" />
+            New Folder
+          </button>
+          <button
             onClick={() => setShowRepositoryBrowser(true)}
             disabled={!selectedKnowledgeBase}
             className="px-4 py-2 bg-violet-600 dark:bg-violet-500 text-white rounded-lg hover:bg-violet-700 dark:hover:bg-violet-600 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
@@ -591,6 +680,46 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
               </div>
             );
           })}
+        </div>
+      )}
+
+      {showNewFolderInput && (
+        <div className="flex items-center gap-2 p-3 rounded-lg border-2 border-sky-300 dark:border-sky-600 bg-sky-50 dark:bg-sky-900/20">
+          <FolderPlus className="w-5 h-5 text-sky-500 dark:text-sky-400 flex-shrink-0" />
+          <input
+            ref={folderInputRef}
+            type="text"
+            value={newFolderName}
+            onChange={(e) => setNewFolderName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleCreateFolder();
+              if (e.key === 'Escape') {
+                setShowNewFolderInput(false);
+                setNewFolderName('');
+              }
+            }}
+            placeholder="Folder name"
+            disabled={creatingFolder}
+            className="flex-1 px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+          />
+          <button
+            onClick={handleCreateFolder}
+            disabled={creatingFolder || !newFolderName.trim()}
+            className="px-3 py-1.5 bg-sky-600 dark:bg-sky-500 text-white rounded-lg hover:bg-sky-700 dark:hover:bg-sky-600 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5 text-sm"
+          >
+            {creatingFolder ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+            Create
+          </button>
+          <button
+            onClick={() => {
+              setShowNewFolderInput(false);
+              setNewFolderName('');
+            }}
+            disabled={creatingFolder}
+            className="px-3 py-1.5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-sm"
+          >
+            Cancel
+          </button>
         </div>
       )}
 
