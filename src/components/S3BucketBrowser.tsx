@@ -351,6 +351,64 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
     }
   };
 
+  const handleDeleteFolder = async (folderPath: string, folderName: string) => {
+    const folderObjects = getFilesInFolder(folderPath);
+    const folderMarkerKey = `${folderPath}/.folder`;
+    const hasMarker = allObjects.some(obj => obj.Key === folderMarkerKey);
+
+    const fileCount = folderObjects.filter(obj => !obj.Key.endsWith('/.folder')).length;
+    const message = fileCount > 0
+      ? `Are you sure you want to delete the folder "${folderName}" and its ${fileCount} file${fileCount !== 1 ? 's' : ''}?`
+      : `Are you sure you want to delete the empty folder "${folderName}"?`;
+
+    if (!confirm(message)) return;
+
+    setDeletingKey(folderPath);
+    try {
+      const session = await getValidSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        throw new Error('No authentication token');
+      }
+
+      const keysToDelete = folderObjects.map(obj => obj.Key);
+      if (!keysToDelete.includes(folderMarkerKey)) {
+        keysToDelete.push(folderMarkerKey);
+      }
+
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-s3-object`;
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          keys: keysToDelete,
+          knowledgeBaseId: selectedKnowledgeBase
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        if (response.status === 403) {
+          throw new Error('Permission denied: AWS credentials do not have s3:DeleteObject permission.');
+        }
+        throw new Error(error.error || 'Failed to delete folder');
+      }
+
+      await fetchObjects(true);
+    } catch (error) {
+      console.error('Error deleting folder:', error);
+      onError(error instanceof Error ? error.message : 'Failed to delete folder');
+    } finally {
+      setDeletingKey(null);
+    }
+  };
+
   const handleCreateFolder = async () => {
     const trimmed = newFolderName.trim();
     if (!trimmed) return;
@@ -763,8 +821,8 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
                     </p>
                   )}
                 </div>
-                {!item.isFolder && (
-                  <div className="flex gap-2 flex-shrink-0">
+                <div className="flex gap-2 flex-shrink-0">
+                  {!item.isFolder && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -781,24 +839,28 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
                       )}
                       View
                     </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
+                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (item.isFolder) {
+                        handleDeleteFolder(item.path, item.name);
+                      } else {
                         handleDelete(item.path);
-                      }}
-                      disabled={deletingKey === item.path}
-                      className="inline-flex items-center gap-1 px-3 py-1 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Delete"
-                    >
-                      {deletingKey === item.path ? (
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4" />
-                      )}
-                      Delete
-                    </button>
-                  </div>
-                )}
+                      }
+                    }}
+                    disabled={deletingKey === item.path}
+                    className="inline-flex items-center gap-1 px-3 py-1 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={item.isFolder ? "Delete folder" : "Delete"}
+                  >
+                    {deletingKey === item.path ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                    Delete
+                  </button>
+                </div>
               </div>
             );
           })}

@@ -38,11 +38,11 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { key, knowledgeBaseId } = await req.json();
+    const { key, keys, knowledgeBaseId } = await req.json();
 
-    if (!key) {
+    if (!key && (!keys || keys.length === 0)) {
       return new Response(
-        JSON.stringify({ error: "Key is required" }),
+        JSON.stringify({ error: "Key or keys array is required" }),
         {
           status: 400,
           headers: {
@@ -52,6 +52,8 @@ Deno.serve(async (req: Request) => {
         }
       );
     }
+
+    const keysToDelete: string[] = keys && keys.length > 0 ? keys : [key];
 
     const awsAccessKeyId = Deno.env.get("AWS_ACCESS_KEY_ID")?.trim();
     const awsSecretAccessKey = Deno.env.get("AWS_SECRET_ACCESS_KEY")?.trim();
@@ -177,48 +179,50 @@ Deno.serve(async (req: Request) => {
 
     console.log("Using S3 bucket:", bucketName, "with prefix:", prefix);
 
-    const fullKey = prefix ? `${prefix}${key}` : key;
-    console.log("Deleting object with key:", fullKey);
+    const failed: string[] = [];
+    let deleted = 0;
 
-    const s3UrlString = `https://${bucketName}.s3.${awsRegion}.amazonaws.com/${fullKey}`;
+    for (const k of keysToDelete) {
+      const fullKey = prefix ? `${prefix}${k}` : k;
+      console.log("Deleting object with key:", fullKey);
 
-    const s3Headers = await signRequest({
-      method: "DELETE",
-      url: s3UrlString,
-      body: "",
-      region: awsRegion,
-      service: "s3",
-      accessKeyId: awsAccessKeyId,
-      secretAccessKey: awsSecretAccessKey,
-    });
+      const s3UrlString = `https://${bucketName}.s3.${awsRegion}.amazonaws.com/${fullKey}`;
 
-    console.log("Making S3 DELETE request:", {
-      url: s3UrlString,
-      region: awsRegion,
-      bucket: bucketName,
-      key: fullKey,
-    });
-
-    const s3Response = await fetch(s3UrlString, {
-      method: "DELETE",
-      headers: s3Headers,
-    });
-
-    if (!s3Response.ok) {
-      const errorText = await s3Response.text();
-      console.error("S3 DELETE error:", {
-        status: s3Response.status,
-        statusText: s3Response.statusText,
-        error: errorText,
+      const s3Headers = await signRequest({
+        method: "DELETE",
+        url: s3UrlString,
+        body: "",
+        region: awsRegion,
+        service: "s3",
+        accessKeyId: awsAccessKeyId,
+        secretAccessKey: awsSecretAccessKey,
       });
+
+      const s3Response = await fetch(s3UrlString, {
+        method: "DELETE",
+        headers: s3Headers,
+      });
+
+      if (!s3Response.ok) {
+        const errorText = await s3Response.text();
+        console.error("S3 DELETE error for key:", fullKey, {
+          status: s3Response.status,
+          error: errorText,
+        });
+        failed.push(k);
+      } else {
+        deleted++;
+      }
+    }
+
+    if (failed.length > 0 && deleted === 0) {
       return new Response(
         JSON.stringify({
-          error: "Failed to delete S3 object",
-          details: errorText,
-          status: s3Response.status,
+          error: "Failed to delete S3 objects",
+          failedKeys: failed,
         }),
         {
-          status: s3Response.status,
+          status: 500,
           headers: {
             ...corsHeaders,
             "Content-Type": "application/json",
@@ -228,7 +232,12 @@ Deno.serve(async (req: Request) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: "Object deleted successfully" }),
+      JSON.stringify({
+        success: true,
+        message: `Deleted ${deleted} object(s)${failed.length > 0 ? `, ${failed.length} failed` : ""}`,
+        deleted,
+        failed,
+      }),
       {
         headers: {
           ...corsHeaders,
