@@ -185,53 +185,38 @@ Deno.serve(async (req: Request) => {
 
     console.log('Received request:', { modelArn, inferenceProfileId, inferenceProfileArn, useKnowledgeBase, attachments, includeCitations });
 
-    // Fetch model details to get max output tokens
-    let maxOutputTokens = 8000; // Default fallback
-    if (modelArn) {
-      try {
-        const modelId = modelArn.split('/').pop() || modelArn;
-        const awsAccessKeyId = Deno.env.get("AWS_ACCESS_KEY_ID")!;
-        const awsSecretAccessKey = Deno.env.get("AWS_SECRET_ACCESS_KEY")!;
-        const awsRegion = Deno.env.get("AWS_REGION") || "us-east-1";
+    function getMaxOutputTokens(modelIdentifier: string | undefined): number {
+      const id = (modelIdentifier || '').toLowerCase();
 
-        const modelDetailsEndpoint = `https://bedrock.${awsRegion}.amazonaws.com/foundation-models/${encodeURIComponent(modelId)}`;
-        const modelDetailsHeaders = await signRequest(
-          'GET',
-          modelDetailsEndpoint,
-          '',
-          awsRegion,
-          'bedrock',
-          awsAccessKeyId,
-          awsSecretAccessKey
-        );
+      if (id.includes('claude-opus')) return 32000;
+      if (id.includes('claude-sonnet-4')) return 16000;
+      if (id.includes('claude-3-5-sonnet') || id.includes('claude-3.5-sonnet')) return 8192;
+      if (id.includes('claude-3-5-haiku') || id.includes('claude-3.5-haiku')) return 8192;
+      if (id.includes('claude-haiku-4') || id.includes('claude-haiku-4.5')) return 16000;
+      if (id.includes('claude')) return 8192;
 
-        const modelDetailsResponse = await fetch(modelDetailsEndpoint, {
-          method: 'GET',
-          headers: modelDetailsHeaders,
-        });
+      if (id.includes('nova-premier')) return 25000;
+      if (id.includes('nova-pro')) return 5120;
+      if (id.includes('nova-lite')) return 5120;
+      if (id.includes('nova-micro')) return 5120;
 
-        if (modelDetailsResponse.ok) {
-          const modelDetails = await modelDetailsResponse.json();
-          console.log('Model details:', modelDetails);
+      if (id.includes('llama-4')) return 16384;
+      if (id.includes('llama-3') || id.includes('llama3')) return 8192;
+      if (id.includes('llama')) return 4096;
 
-          // Extract max output tokens from model details
-          if (modelDetails.modelDetails?.outputModalities) {
-            for (const modality of modelDetails.modelDetails.outputModalities) {
-              if (modality.text?.maxOutputTokens) {
-                maxOutputTokens = Math.floor(modality.text.maxOutputTokens * 0.95); // Use 95% as safety margin
-                console.log(`Using max output tokens: ${maxOutputTokens} (95% of ${modality.text.maxOutputTokens})`);
-                break;
-              }
-            }
-          }
-        } else {
-          console.warn('Failed to fetch model details, using default maxTokens');
-        }
-      } catch (error) {
-        console.warn('Error fetching model details:', error);
-        // Continue with default
-      }
+      if (id.includes('mistral-large')) return 8192;
+      if (id.includes('mistral')) return 8192;
+
+      if (id.includes('deepseek')) return 16384;
+      if (id.includes('command-r')) return 4096;
+      if (id.includes('jamba')) return 4096;
+
+      return 4096;
     }
+
+    const resolvedModelId = inferenceProfileId || inferenceProfileArn || modelArn || '';
+    const maxOutputTokens = getMaxOutputTokens(resolvedModelId);
+    console.log(`Model: ${resolvedModelId}, maxOutputTokens: ${maxOutputTokens}`);
 
     if (!query || query.trim().length === 0) {
       return new Response(
