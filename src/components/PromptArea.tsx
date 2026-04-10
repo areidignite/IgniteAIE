@@ -34,6 +34,7 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
     e.preventDefault();
     if (prompt.trim() && !isLoading) {
       await onSubmit(prompt, attachedFiles.length > 0 ? attachedFiles : undefined, true);
+      setAttachedFiles([]);
     }
   };
 
@@ -50,8 +51,9 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
         throw new Error('No authentication token. Please log in again.');
       }
 
+      const timestamp = Date.now();
       const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-      const fileKey = sanitizedFileName;
+      const fileKey = `prompt-attachments/${timestamp}_${sanitizedFileName}`;
 
       const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-upload-url`;
       const response = await fetch(apiUrl, {
@@ -64,7 +66,6 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
         body: JSON.stringify({
           key: fileKey,
           contentType: file.type || 'application/octet-stream',
-          knowledgeBaseId: selectedKnowledgeBase,
         }),
       });
 
@@ -210,7 +211,6 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
           )}
         </div>
         <div className="flex items-center gap-2">
-          {/* Hidden for version 2
           <input
             ref={fileInputRef}
             type="file"
@@ -237,7 +237,6 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
               </>
             )}
           </button>
-          */}
           <button
             type="submit"
             disabled={isLoading || isImprovingPrompt || uploadingFile || !prompt.trim()}

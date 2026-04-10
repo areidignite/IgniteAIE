@@ -265,20 +265,44 @@ Deno.serve(async (req: Request) => {
       };
     }
 
+    function uint8ArrayToBase64(bytes: Uint8Array): string {
+      const chunkSize = 8192;
+      let binary = '';
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+        binary += String.fromCharCode(...chunk);
+      }
+      return btoa(binary);
+    }
+
+    function sanitizeDocName(name: string): string {
+      const withoutExt = name.replace(/\.[^.]+$/, '');
+      return withoutExt.replace(/[^a-zA-Z0-9\s\-()[\]]/g, '_').slice(0, 100);
+    }
+
+    function getDocFormat(filename: string): string {
+      const ext = filename.toLowerCase().split('.').pop();
+      if (ext === 'txt') return 'txt';
+      if (ext === 'md') return 'md';
+      if (ext === 'csv') return 'csv';
+      if (ext === 'doc' || ext === 'docx') return 'doc';
+      if (ext === 'xls' || ext === 'xlsx') return 'xls';
+      if (ext === 'html' || ext === 'htm') return 'html';
+      return 'pdf';
+    }
+
     let processedAttachments: ProcessedAttachment[] = [];
     if (attachments && attachments.length > 0) {
       console.log('Processing attachments:', attachments);
 
       for (const attachment of attachments) {
         try {
-          // Get presigned URL to download the file
           const s3Bucket = Deno.env.get("AWS_S3_BUCKET_NAME");
           if (!s3Bucket) {
             console.error('S3 bucket not configured');
             continue;
           }
 
-          // Generate presigned URL for download
           const s3Endpoint = `https://${s3Bucket}.s3.${awsRegion}.amazonaws.com/${attachment.s3Key}`;
           const s3Headers = await signRequest(
             'GET',
@@ -296,30 +320,18 @@ Deno.serve(async (req: Request) => {
           });
 
           if (s3Response.ok) {
-            // Get the file as binary data
             const arrayBuffer = await s3Response.arrayBuffer();
             const bytes = new Uint8Array(arrayBuffer);
-
-            // Convert to base64
-            const base64 = btoa(String.fromCharCode(...bytes));
-
-            // Determine format
-            let format = 'pdf';
-            const extension = attachment.name.toLowerCase().split('.').pop();
-            if (extension === 'txt') format = 'txt';
-            else if (extension === 'md') format = 'md';
-            else if (extension === 'csv') format = 'csv';
-            else if (extension === 'doc' || extension === 'docx') format = 'doc';
+            const base64 = uint8ArrayToBase64(bytes);
+            const format = getDocFormat(attachment.name);
 
             processedAttachments.push({
-              name: attachment.name,
-              format: format,
-              source: {
-                bytes: base64
-              }
+              name: sanitizeDocName(attachment.name),
+              format,
+              source: { bytes: base64 }
             });
 
-            console.log(`Successfully processed attachment ${attachment.name} (${format})`);
+            console.log(`Successfully processed attachment ${attachment.name} (${format}, ${bytes.length} bytes)`);
           } else {
             console.error(`Failed to download ${attachment.name}:`, await s3Response.text());
           }
@@ -329,34 +341,61 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    if (awsKnowledgeBaseId && useKnowledgeBase && processedAttachments.length === 0) {
-      // Use knowledge base for queries without attachments
-      const endpoint = `https://bedrock-agent-runtime.${awsRegion}.amazonaws.com/retrieveAndGenerate`;
+    function resolveModelId(): string {
+      if (inferenceProfileId) return inferenceProfileId;
+      if (inferenceProfileArn) return inferenceProfileArn;
+      const modelId = modelArn || 'anthropic.claude-sonnet-4-5-20250929-v1:0';
+      const baseId = modelId.includes('foundation-model/')
+        ? modelId.split('foundation-model/')[1]
+        : modelId;
+      return `us.${baseId}`;
+    }
 
-      let finalModelArn: string;
+    function extractCitations(bedrockCitations: any[]) {
+      const allRefs: Array<{ text: string; location?: any }> = [];
+      const filenameMap = new Map<string, string>();
 
-      console.log('Knowledge Base model resolution inputs:', {
-        inferenceProfileArn,
-        inferenceProfileId,
-        modelArn,
-      });
-
-      if (inferenceProfileArn) {
-        finalModelArn = inferenceProfileArn;
-      } else if (inferenceProfileId) {
-        finalModelArn = inferenceProfileId;
-      } else if (modelArn) {
-        const extractedModelId = modelArn.includes('foundation-model/')
-          ? modelArn.split('foundation-model/')[1]
-          : modelArn;
-        finalModelArn = `us.${extractedModelId}`;
-      } else {
-        finalModelArn = 'us.anthropic.claude-sonnet-4-5-20250929-v1:0';
+      for (const citation of bedrockCitations) {
+        for (const ref of (citation.retrievedReferences || [])) {
+          const s3Uri = ref?.location?.s3Location?.uri;
+          if (s3Uri) {
+            const parts = s3Uri.split('/');
+            const filename = decodeURIComponent(parts[parts.length - 1] || s3Uri);
+            if (!filenameMap.has(s3Uri)) {
+              filenameMap.set(s3Uri, filename);
+            }
+          }
+          allRefs.push({
+            text: ref?.content?.text || "",
+            location: ref?.location
+          });
+        }
       }
 
+      return { allRefs, filenameMap };
+    }
+
+    function replaceSourceReferences(text: string, filenameMap: Map<string, string>): string {
+      const uniqueFiles = Array.from(filenameMap.entries());
+      if (uniqueFiles.length === 0) return text;
+      return text.replace(
+        /Source\s+Document[s]?\s*[:.]?\s*(\d+)/gi,
+        (match: string, num: string) => {
+          const idx = parseInt(num, 10) - 1;
+          if (idx >= 0 && idx < uniqueFiles.length) {
+            return `Source: ${uniqueFiles[idx][1]}`;
+          }
+          return match;
+        }
+      );
+    }
+
+    if (awsKnowledgeBaseId && useKnowledgeBase && processedAttachments.length === 0) {
+      const endpoint = `https://bedrock-agent-runtime.${awsRegion}.amazonaws.com/retrieveAndGenerate`;
+
+      const finalModelArn = resolveModelId();
       console.log('Knowledge Base modelArn resolved to:', finalModelArn);
 
-      // Add instruction to extract names from source documents
       let enhancedQuery = query;
       if (query.toLowerCase().includes('candidate') || query.toLowerCase().includes('resume')) {
         enhancedQuery = `${query}\n\nIMPORTANT: For each candidate you identify, extract their full name from the source document. Look for names at the beginning of documents or in header sections. Include the source document filename in your response. Present the information in a clear list format with: 1) Candidate Name, 2) Certifications, 3) Source Document.`;
@@ -409,7 +448,6 @@ User question: $query$`
         }
       };
 
-
       const bodyString = JSON.stringify(body);
       const headers = await signRequest(
         "POST",
@@ -422,16 +460,12 @@ User question: $query$`
       );
 
       console.log("DEBUG: Sending request to Bedrock Knowledge Base");
-      console.log("DEBUG: Endpoint:", endpoint);
-      console.log("DEBUG: Request body:", JSON.stringify(body, null, 2));
 
       const bedrockResponse = await fetch(endpoint, {
         method: "POST",
         headers,
         body: bodyString,
       });
-
-      console.log("DEBUG: Bedrock response status:", bedrockResponse.status);
 
       if (!bedrockResponse.ok) {
         const errorText = await bedrockResponse.text();
@@ -444,112 +478,115 @@ User question: $query$`
           }),
           {
             status: bedrockResponse.status,
-            headers: {
-              ...corsHeaders,
-              "Content-Type": "application/json",
-            },
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
           }
         );
       }
 
       const bedrockData = await bedrockResponse.json();
-      console.log("DEBUG: Bedrock response data:", JSON.stringify(bedrockData, null, 2));
-
       answer = bedrockData.output?.text || "No answer generated";
-      console.log("DEBUG: Extracted answer:", answer);
 
       if (answer.includes("unable to assist")) {
         console.error("CONTENT FILTER TRIGGERED - Full response:", JSON.stringify(bedrockData, null, 2));
-        console.error("Query that triggered filter:", query);
       }
 
       if (bedrockData.citations) {
-        const allRefs: Array<{ text: string; location?: any }> = [];
-        const filenameMap = new Map<string, string>();
+        const { allRefs, filenameMap } = extractCitations(bedrockData.citations);
+        citations = allRefs;
+        answer = replaceSourceReferences(answer, filenameMap);
+        console.log("DEBUG: Extracted citations count:", citations.length);
+      }
+    } else if (awsKnowledgeBaseId && useKnowledgeBase && processedAttachments.length > 0) {
+      console.log("Using KB Retrieve + Converse with attachments");
 
-        for (const citation of bedrockData.citations) {
-          for (const ref of (citation.retrievedReferences || [])) {
-            const s3Uri = ref?.location?.s3Location?.uri;
-            let filename = '';
-            if (s3Uri) {
-              const parts = s3Uri.split('/');
-              filename = decodeURIComponent(parts[parts.length - 1] || s3Uri);
-              if (!filenameMap.has(s3Uri)) {
-                filenameMap.set(s3Uri, filename);
-              }
-            }
-
-            allRefs.push({
-              text: ref?.content?.text || "",
-              location: ref?.location
-            });
+      const retrieveEndpoint = `https://bedrock-agent-runtime.${awsRegion}.amazonaws.com/knowledgebases/${awsKnowledgeBaseId}/retrieve`;
+      const retrieveBody: any = {
+        retrievalQuery: { text: query },
+        retrievalConfiguration: {
+          vectorSearchConfiguration: {
+            numberOfResults: 25,
+            overrideSearchType: "HYBRID"
           }
         }
+      };
 
-        citations = allRefs;
+      const retrieveBodyString = JSON.stringify(retrieveBody);
+      const retrieveHeaders = await signRequest(
+        "POST",
+        retrieveEndpoint,
+        retrieveBodyString,
+        awsRegion,
+        "bedrock",
+        awsAccessKeyId,
+        awsSecretAccessKey
+      );
 
-        const uniqueFiles = Array.from(filenameMap.entries());
-        if (uniqueFiles.length > 0) {
-          answer = answer.replace(
-            /Source\s+Document[s]?\s*[:.]?\s*(\d+)/gi,
-            (match: string, num: string) => {
-              const idx = parseInt(num, 10) - 1;
-              if (idx >= 0 && idx < uniqueFiles.length) {
-                return `Source: ${uniqueFiles[idx][1]}`;
-              }
-              return match;
-            }
-          );
-        }
+      let kbContext = '';
+      const retrieveResponse = await fetch(retrieveEndpoint, {
+        method: "POST",
+        headers: retrieveHeaders,
+        body: retrieveBodyString,
+      });
 
-        console.log("DEBUG: Extracted citations count:", citations.length);
-        console.log("DEBUG: Unique source files:", uniqueFiles.map(f => f[1]));
-      }
-    } else {
-      // Use Converse API for direct model calls (with or without attachments)
-      let extractedModelId: string;
-      if (inferenceProfileId) {
-        extractedModelId = inferenceProfileId;
-      } else {
-        const modelId = modelArn || 'anthropic.claude-sonnet-4-5-20250929-v1:0';
-        const baseId = modelId.includes('foundation-model/')
-          ? modelId.split('foundation-model/')[1]
-          : modelId;
-        extractedModelId = `us.${baseId}`;
-      }
+      if (retrieveResponse.ok) {
+        const retrieveData = await retrieveResponse.json();
+        const results = retrieveData.retrievalResults || [];
+        console.log(`Retrieved ${results.length} chunks from knowledge base`);
 
-      const endpoint = `https://bedrock-runtime.${awsRegion}.amazonaws.com/model/${extractedModelId}/converse`;
+        const filenameMap = new Map<string, string>();
+        const chunks: string[] = [];
 
-      // Build content array with text and documents
-      const content: any[] = [
-        {
-          text: query
-        }
-      ];
+        for (const result of results) {
+          const text = result?.content?.text;
+          if (text) chunks.push(text);
 
-      // Add documents if attachments are present
-      if (processedAttachments.length > 0) {
-        console.log(`Adding ${processedAttachments.length} documents to the request`);
-        for (const attachment of processedAttachments) {
-          content.push({
-            document: {
-              name: attachment.name,
-              format: attachment.format,
-              source: {
-                bytes: attachment.source.bytes
-              }
-            }
+          const s3Uri = result?.location?.s3Location?.uri;
+          if (s3Uri) {
+            const parts = s3Uri.split('/');
+            const filename = decodeURIComponent(parts[parts.length - 1] || s3Uri);
+            if (!filenameMap.has(s3Uri)) filenameMap.set(s3Uri, filename);
+          }
+
+          citations.push({
+            text: text || "",
+            location: result?.location
           });
         }
+
+        if (chunks.length > 0) {
+          kbContext = chunks.join('\n\n---\n\n');
+        }
+
+        console.log("DEBUG: KB context length:", kbContext.length, "citations:", citations.length);
+      } else {
+        console.error("KB Retrieve failed:", retrieveResponse.status, await retrieveResponse.text());
       }
 
-      const body: any = {
-        messages: [
-          {
-            role: "user",
-            content: content
+      const extractedModelId = resolveModelId();
+      const converseEndpoint = `https://bedrock-runtime.${awsRegion}.amazonaws.com/model/${extractedModelId}/converse`;
+
+      const content: any[] = [];
+
+      if (kbContext) {
+        content.push({
+          text: `The following is reference information retrieved from the knowledge base. Use it to help answer the user's question:\n\n${kbContext}\n\n---\n\nUser's question: ${query}`
+        });
+      } else {
+        content.push({ text: query });
+      }
+
+      for (const attachment of processedAttachments) {
+        content.push({
+          document: {
+            name: attachment.name,
+            format: attachment.format,
+            source: { bytes: attachment.source.bytes }
           }
-        ],
+        });
+      }
+
+      const converseBody: any = {
+        messages: [{ role: "user", content }],
         inferenceConfig: {
           maxTokens: maxOutputTokens,
           temperature: 0.7
@@ -557,11 +594,77 @@ User question: $query$`
       };
 
       if (systemPrompt) {
-        body.system = [
+        converseBody.system = [{ text: systemPrompt }];
+      } else {
+        converseBody.system = [{
+          text: "You are a helpful assistant. You have been given attached document(s) and reference information from a knowledge base. Use both the attached documents and the knowledge base context to provide accurate, thorough answers. When referencing information, indicate whether it came from the attached document or the knowledge base."
+        }];
+      }
+
+      const converseBodyString = JSON.stringify(converseBody);
+      const converseHeaders = await signRequest(
+        "POST",
+        converseEndpoint,
+        converseBodyString,
+        awsRegion,
+        "bedrock",
+        awsAccessKeyId,
+        awsSecretAccessKey
+      );
+
+      const converseResponse = await fetch(converseEndpoint, {
+        method: "POST",
+        headers: converseHeaders,
+        body: converseBodyString,
+      });
+
+      if (!converseResponse.ok) {
+        const errorText = await converseResponse.text();
+        console.error("Converse API error:", errorText);
+        return new Response(
+          JSON.stringify({
+            error: "Failed to get response from Bedrock",
+            details: errorText,
+            status: converseResponse.status
+          }),
           {
-            text: systemPrompt
+            status: converseResponse.status,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
           }
-        ];
+        );
+      }
+
+      const converseData = await converseResponse.json();
+      answer = converseData.output?.message?.content?.[0]?.text || "No answer generated";
+    } else {
+      const extractedModelId = resolveModelId();
+      const endpoint = `https://bedrock-runtime.${awsRegion}.amazonaws.com/model/${extractedModelId}/converse`;
+
+      const content: any[] = [{ text: query }];
+
+      if (processedAttachments.length > 0) {
+        console.log(`Adding ${processedAttachments.length} documents to the request`);
+        for (const attachment of processedAttachments) {
+          content.push({
+            document: {
+              name: attachment.name,
+              format: attachment.format,
+              source: { bytes: attachment.source.bytes }
+            }
+          });
+        }
+      }
+
+      const body: any = {
+        messages: [{ role: "user", content }],
+        inferenceConfig: {
+          maxTokens: maxOutputTokens,
+          temperature: 0.7
+        }
+      };
+
+      if (systemPrompt) {
+        body.system = [{ text: systemPrompt }];
       }
 
       const bodyString = JSON.stringify(body);
@@ -592,10 +695,7 @@ User question: $query$`
           }),
           {
             status: bedrockResponse.status,
-            headers: {
-              ...corsHeaders,
-              "Content-Type": "application/json",
-            },
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
           }
         );
       }
