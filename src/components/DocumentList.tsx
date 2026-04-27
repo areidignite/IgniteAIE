@@ -192,6 +192,7 @@ export function DocumentList({ documents, selectedId, onSelect, onDelete, onView
                   : 'border-slate-200 hover:border-slate-300 bg-white dark:border-slate-700 dark:hover:border-slate-600 dark:bg-slate-800'
               } ${draggingId === doc.id ? 'opacity-50' : ''}`}
               onClick={() => onSelect(doc)}
+              onDoubleClick={() => onViewFull(doc)}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
