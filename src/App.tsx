@@ -314,7 +314,7 @@ function App() {
   };
 
   const validateModels = async (modelsToCheck?: FoundationModel[]) => {
-    const targetModels = modelsToCheck || models;
+    const targetModels = Array.isArray(modelsToCheck) ? modelsToCheck : Array.isArray(models) ? models : [];
     if (!user || targetModels.length === 0) return;
 
     setValidatingModels(true);
