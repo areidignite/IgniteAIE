@@ -1,4 +1,4 @@
-import { FileText, Trash2, Search, X, Filter, MessageSquareText, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
+import { FileText, Trash2, Search, X, Filter, MessageSquareText, ChevronDown, ChevronUp, Copy, Check, Maximize2 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import type { Document } from '../lib/supabase';
 
@@ -10,9 +10,10 @@ interface DocumentListProps {
   selectedId: string | null;
   onSelect: (doc: Document) => void;
   onDelete: (id: string) => void;
+  onViewFull: (doc: Document) => void;
 }
 
-export function DocumentList({ documents, selectedId, onSelect, onDelete }: DocumentListProps) {
+export function DocumentList({ documents, selectedId, onSelect, onDelete, onViewFull }: DocumentListProps) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
@@ -263,15 +264,28 @@ export function DocumentList({ documents, selectedId, onSelect, onDelete }: Docu
                     </div>
                   )}
                 </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(doc.id);
-                  }}
-                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-all text-red-600 dark:text-red-400"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex flex-col gap-1 flex-shrink-0">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onViewFull(doc);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-all text-blue-600 dark:text-blue-400"
+                    title="View full response"
+                  >
+                    <Maximize2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(doc.id);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-all text-red-600 dark:text-red-400"
+                    title="Delete response"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           ))}

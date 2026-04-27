@@ -13,6 +13,7 @@ import { KnowledgeBaseSelector } from './components/KnowledgeBaseSelector';
 import { ResizablePanel } from './components/ResizablePanel';
 import { ResizablePanelHorizontal } from './components/ResizablePanelHorizontal';
 import { S3BucketBrowser } from './components/S3BucketBrowser';
+import { ResponseDetailModal } from './components/ResponseDetailModal';
 import { PromptTemplateManager } from './components/PromptTemplateManager';
 import { useTheme } from './hooks/useTheme';
 import { useAutoSaveWorkspace } from './hooks/useAutoSaveWorkspace';
@@ -109,6 +110,7 @@ function App() {
   const [storageBlocked, setStorageBlocked] = useState(false);
   const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
   const [showTemplateManager, setShowTemplateManager] = useState(false);
+  const [viewFullDocument, setViewFullDocument] = useState<Document | null>(null);
   const [templateManagerInitialContent, setTemplateManagerInitialContent] = useState<string | undefined>(undefined);
   const { saveStatus: workspaceSaveStatus, saveNow: saveWorkspaceNow } = useAutoSaveWorkspace(user?.id, workspaceContent);
 
@@ -910,6 +912,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
                           selectedId={selectedDocument?.id || null}
                           onSelect={handleSelectDocument}
                           onDelete={handleDeleteDocument}
+                          onViewFull={setViewFullDocument}
                         />
                       </div>
                     </>
@@ -958,6 +961,13 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
             setTemplateManagerInitialContent(undefined);
           }}
           initialContent={templateManagerInitialContent}
+        />
+      )}
+
+      {viewFullDocument && (
+        <ResponseDetailModal
+          doc={viewFullDocument}
+          onClose={() => setViewFullDocument(null)}
         />
       )}
 
