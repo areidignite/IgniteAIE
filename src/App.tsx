@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { FileText, LogOut, Info, Trash2, Sun, Moon } from 'lucide-react';
 import { supabase, getValidSession, type Document } from './lib/supabase';
 import { AuthForm } from './components/AuthForm';
@@ -112,10 +112,10 @@ function App() {
   const [showTemplateManager, setShowTemplateManager] = useState(false);
   const [viewFullDocument, setViewFullDocument] = useState<Document | null>(null);
   const [templateManagerInitialContent, setTemplateManagerInitialContent] = useState<string | undefined>(undefined);
+  const lastTokenRef = useRef<string | null>(null);
   const { saveStatus: workspaceSaveStatus, saveNow: saveWorkspaceNow } = useAutoSaveWorkspace(user?.id, workspaceContent);
 
   useEffect(() => {
-    // Check for storage access
     const checkStorage = () => {
       try {
         localStorage.setItem('test', 'test');
@@ -129,17 +129,15 @@ function App() {
 
     checkStorage();
 
-    // Initialize session using onAuthStateChange (recommended approach)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const newToken = session?.access_token ?? null;
+
       if (event === 'SIGNED_OUT') {
+        lastTokenRef.current = null;
         setUser(null);
         setSession(null);
-      } else if (event === 'TOKEN_REFRESHED') {
-        setSession(session);
-      } else if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-        setUser(session?.user ?? null);
-        setSession(session);
-      } else if (event === 'USER_UPDATED') {
+      } else if (newToken && newToken !== lastTokenRef.current) {
+        lastTokenRef.current = newToken;
         setUser(session?.user ?? null);
         setSession(session);
       }
