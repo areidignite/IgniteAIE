@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { File, FolderOpen, Loader2, CheckSquare, Square, Copy, ChevronRight, Home, Eye, X } from 'lucide-react';
-import { supabase, getValidSession, SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/supabase';
+import { supabase, getValidSession } from '../lib/supabase';
 
 interface S3Object {
   Key: string;
@@ -43,13 +43,13 @@ export function RepositoryBrowser({ onError, selectedKnowledgeBase, onClose }: R
         throw new Error('No active session');
       }
 
-      const apiUrl = `${SUPABASE_URL}/functions/v1/list-repository-files`;
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-repository-files`;
 
       const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
-          'apikey': SUPABASE_ANON_KEY,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
       });
 
@@ -214,13 +214,13 @@ export function RepositoryBrowser({ onError, selectedKnowledgeBase, onClose }: R
         throw new Error('No active session');
       }
 
-      const apiUrl = `${SUPABASE_URL}/functions/v1/copy-repository-files`;
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/copy-repository-files`;
 
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
-          'apikey': SUPABASE_ANON_KEY,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -278,13 +278,13 @@ export function RepositoryBrowser({ onError, selectedKnowledgeBase, onClose }: R
         throw new Error('No active session');
       }
 
-      const apiUrl = `${SUPABASE_URL}/functions/v1/generate-presigned-url`;
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-presigned-url`;
 
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
-          'apikey': SUPABASE_ANON_KEY,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

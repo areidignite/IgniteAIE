@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { FileText } from 'lucide-react';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/supabase';
 
 interface AuthFormProps {
   onSignIn: (email: string, password: string) => Promise<void>;
@@ -79,12 +78,12 @@ export function AuthForm({ onSignIn, onSignUp, onResetPassword }: AuthFormProps)
 
     try {
       const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/send-reset-code`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-reset-code`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           },
           body: JSON.stringify({ email }),
         }

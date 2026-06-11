@@ -1,6 +1,6 @@
 import { FileText, Copy, Check, Link2, ExternalLink, ChevronUp, ChevronDown, Pencil, Save, X } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
-import { getValidSession, SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/supabase';
+import { getValidSession } from '../lib/supabase';
 
 interface DocumentViewerProps {
   content: string;
@@ -88,12 +88,12 @@ export function DocumentViewer({ content, prompt, citations = [], usedKnowledgeB
           const session = await getValidSession();
           if (!session) return;
 
-          const apiUrl = `${SUPABASE_URL}/functions/v1/generate-presigned-url`;
+          const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-presigned-url`;
           const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${session.access_token}`,
-              'apikey': SUPABASE_ANON_KEY,
+              'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({ s3Uri, expiresIn: 3600 }),

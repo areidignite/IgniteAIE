@@ -3,7 +3,7 @@ import { useState, useMemo } from 'react';
 import { saveAs } from 'file-saver';
 import { Document as DocxDocument, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle, TableRow, TableCell, Table, WidthType } from 'docx';
 import { parseHtmlToParagraphs } from '../lib/exportDocument';
-import { getValidSession, SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/supabase';
+import { getValidSession } from '../lib/supabase';
 import type { Document } from '../lib/supabase';
 
 type FilterMode = 'all' | 'rag' | 'direct';
@@ -134,7 +134,8 @@ export function DocumentList({ documents, selectedId, onSelect, onDelete, onView
       let formattedContent = doc.content;
       const session = await getValidSession();
       if (session) {
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/format-for-docx`, {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const response = await fetch(`${supabaseUrl}/functions/v1/format-for-docx`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${session.access_token}`,

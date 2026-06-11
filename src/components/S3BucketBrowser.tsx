@@ -1,6 +1,6 @@
 import { FolderOpen, FolderPlus, File, Download, RefreshCw, Upload, Trash2, RefreshCcw, X, Copy, ChevronRight, Home, Check } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
-import { supabase, getValidSession, SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/supabase';
+import { supabase, getValidSession } from '../lib/supabase';
 import { RepositoryBrowser } from './RepositoryBrowser';
 
 interface S3Object {
@@ -54,7 +54,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
         throw new Error('No authentication token');
       }
 
-      const apiUrl = `${SUPABASE_URL}/functions/v1/list-s3-objects`;
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-s3-objects`;
       const params = new URLSearchParams();
       if (!resetList && continuationToken) params.append('continuationToken', continuationToken);
       if (selectedKnowledgeBase) params.append('knowledgeBaseId', selectedKnowledgeBase);
@@ -62,7 +62,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
       const response = await fetch(`${apiUrl}?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'apikey': SUPABASE_ANON_KEY,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
           'Content-Type': 'application/json',
         },
       });
@@ -192,13 +192,13 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
         throw new Error('No authentication token');
       }
 
-      const apiUrl = `${SUPABASE_URL}/functions/v1/generated-presigned-url`;
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generated-presigned-url`;
 
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'apikey': SUPABASE_ANON_KEY,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -244,13 +244,13 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
         try {
           const key = currentPath ? `${currentPath}/${file.name}` : file.name;
 
-          const apiUrl = `${SUPABASE_URL}/functions/v1/generate-upload-url`;
+          const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-upload-url`;
 
           const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,
-              'apikey': SUPABASE_ANON_KEY,
+              'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
@@ -320,13 +320,13 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
         throw new Error('No authentication token');
       }
 
-      const apiUrl = `${SUPABASE_URL}/functions/v1/delete-s3-object`;
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-s3-object`;
 
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'apikey': SUPABASE_ANON_KEY,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -378,13 +378,13 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
         keysToDelete.push(folderMarkerKey);
       }
 
-      const apiUrl = `${SUPABASE_URL}/functions/v1/delete-s3-object`;
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-s3-object`;
 
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'apikey': SUPABASE_ANON_KEY,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -438,13 +438,13 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
         ? `${currentPath}/${trimmed}/.folder`
         : `${trimmed}/.folder`;
 
-      const apiUrl = `${SUPABASE_URL}/functions/v1/generate-upload-url`;
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-upload-url`;
 
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'apikey': SUPABASE_ANON_KEY,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -498,13 +498,13 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
         throw new Error('No authentication token');
       }
 
-      const apiUrl = `${SUPABASE_URL}/functions/v1/check-ingestion-status`;
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-ingestion-status`;
 
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'apikey': SUPABASE_ANON_KEY,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ knowledgeBaseId, dataSourceId, ingestionJobId }),
@@ -573,13 +573,13 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
         throw new Error('No authentication token');
       }
 
-      const apiUrl = `${SUPABASE_URL}/functions/v1/sync-knowledge-base`;
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sync-knowledge-base`;
 
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'apikey': SUPABASE_ANON_KEY,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
