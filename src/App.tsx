@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { FileText, LogOut, Info, Trash2, Sun, Moon } from 'lucide-react';
-import { supabase, getValidSession, type Document } from './lib/supabase';
+import { supabase, getValidSession, type Document, SUPABASE_URL, SUPABASE_ANON_KEY } from './lib/supabase';
 import { AuthForm } from './components/AuthForm';
 import { UpdatePasswordForm } from './components/UpdatePasswordForm';
 import { PromptArea } from './components/PromptArea';
@@ -269,12 +269,12 @@ function App() {
       }
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-foundation-models`,
+        `${SUPABASE_URL}/functions/v1/list-foundation-models`,
         {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+            'apikey': SUPABASE_ANON_KEY,
             'Content-Type': 'application/json',
           },
         }
@@ -336,12 +336,12 @@ function App() {
       }));
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/validate-models`,
+        `${SUPABASE_URL}/functions/v1/validate-models`,
         {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+            'apikey': SUPABASE_ANON_KEY,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ models: modelsToValidate }),
@@ -387,12 +387,12 @@ function App() {
       }
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-knowledge-bases`,
+        `${SUPABASE_URL}/functions/v1/list-knowledge-bases`,
         {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+            'apikey': SUPABASE_ANON_KEY,
             'Content-Type': 'application/json',
           },
         }
@@ -446,12 +446,12 @@ function App() {
 
   const handleResetPassword = async (email: string, code: string, newPassword: string) => {
     const response = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-reset-code`,
+      `${SUPABASE_URL}/functions/v1/verify-reset-code`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({ email, code, newPassword }),
       }
@@ -545,12 +545,12 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
       }
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bedrock-llm`,
+        `${SUPABASE_URL}/functions/v1/bedrock-llm`,
         {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+            'apikey': SUPABASE_ANON_KEY,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -620,12 +620,12 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
       console.log('Selected model data:', selectedModelData);
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bedrock-llm`,
+        `${SUPABASE_URL}/functions/v1/bedrock-llm`,
         {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+            'apikey': SUPABASE_ANON_KEY,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({

@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { Send, Loader2, Sparkles, Paperclip, X } from 'lucide-react';
-import { supabase, getValidSession } from '../lib/supabase';
+import { supabase, getValidSession, SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/supabase';
 import { PromptTemplateSelector } from './PromptTemplateSelector';
 import type { PromptTemplate } from '../lib/promptTemplates';
 
@@ -55,12 +55,12 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
       const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
       const fileKey = `prompt-attachments/${timestamp}_${sanitizedFileName}`;
 
-      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-upload-url`;
+      const apiUrl = `${SUPABASE_URL}/functions/v1/generate-upload-url`;
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'apikey': SUPABASE_ANON_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

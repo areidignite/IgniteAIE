@@ -1,7 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://rpyogtifhvpxjqybxmly.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_PqVDpXj3P0lJKz48R-Y-Hg_dfxGNCbO';
+export const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string) || 'https://rpyogtifhvpxjqybxmly.supabase.co';
+export const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY as string) || 'sb_publishable_PqVDpXj3P0lJKz48R-Y-Hg_dfxGNCbO';
+
+const supabaseUrl = SUPABASE_URL;
+const supabaseAnonKey = SUPABASE_ANON_KEY;
 
 // In-memory storage fallback for when localStorage is blocked
 class MemoryStorage {
