@@ -129,39 +129,18 @@ function App() {
 
     checkStorage();
 
-    const initSession = async () => {
-      try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        if (!mounted) return;
-        if (currentSession) {
-          setUser(currentSession.user);
-          setSession(currentSession);
-        }
-      } catch (e) {
-        // no session available
-      }
-      if (mounted) setLoading(false);
-    };
-
-    initSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
       if (!mounted) return;
-      if (event === 'SIGNED_IN') {
-        setUser(newSession?.user ?? null);
-        setSession(newSession);
-        setLoading(false);
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setSession(null);
-        setLoading(false);
+      if (currentSession) {
+        setUser(currentSession.user);
+        setSession(currentSession);
       }
+      setLoading(false);
+    }).catch(() => {
+      if (mounted) setLoading(false);
     });
 
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
+    return () => { mounted = false; };
   }, []);
 
   useEffect(() => {
@@ -449,13 +428,19 @@ function App() {
   };
 
   const handleSignIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
+    setUser(data.session?.user ?? null);
+    setSession(data.session);
   };
 
   const handleSignUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) throw error;
+    if (data.session) {
+      setUser(data.session.user);
+      setSession(data.session);
+    }
   };
 
   const handleResetPassword = async (email: string, code: string, newPassword: string) => {

@@ -18,6 +18,7 @@ export function RichTextEditor({ content, onChange, placeholder }: RichTextEdito
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
+        underline: false,
       }),
       Underline,
       TextAlign.configure({
