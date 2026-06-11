@@ -15,6 +15,7 @@ interface UploadUrlRequest {
   contentType?: string;
   expiresIn?: number;
   knowledgeBaseId?: string;
+  skipPrefix?: boolean;
 }
 
 Deno.serve(async (req: Request) => {
@@ -47,7 +48,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { key, contentType = "application/octet-stream", expiresIn = 3600, knowledgeBaseId }: UploadUrlRequest = await req.json();
+    const { key, contentType = "application/octet-stream", expiresIn = 3600, knowledgeBaseId, skipPrefix }: UploadUrlRequest = await req.json();
 
     if (!key) {
       return new Response(
@@ -65,7 +66,7 @@ Deno.serve(async (req: Request) => {
     const awsAccessKeyId = Deno.env.get("AWS_ACCESS_KEY_ID")?.trim();
     const awsSecretAccessKey = Deno.env.get("AWS_SECRET_ACCESS_KEY")?.trim();
     const awsRegion = (Deno.env.get("AWS_REGION") || "us-east-1").trim();
-    let bucketName = Deno.env.get("AWS_S3_BUCKET_NAME")?.trim();
+    let bucketName = (Deno.env.get("AWS_S3_BUCKET_NAME") || Deno.env.get("AWS_REPOSITORY_BUCKET_NAME"))?.trim();
     let prefix = "";
 
     if (!awsAccessKeyId || !awsSecretAccessKey) {
@@ -199,7 +200,7 @@ Deno.serve(async (req: Request) => {
       },
     });
 
-    const fullKey = prefix ? `${prefix}${key}` : key;
+    const fullKey = (prefix && !skipPrefix) ? `${prefix}${key}` : key;
     console.log("Generating upload URL for key:", fullKey);
 
     const command = new PutObjectCommand({

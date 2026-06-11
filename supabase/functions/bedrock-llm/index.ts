@@ -188,7 +188,7 @@ Deno.serve(async (req: Request) => {
     function getMaxOutputTokens(modelIdentifier: string | undefined): number {
       const id = (modelIdentifier || '').toLowerCase();
 
-      if (id.includes('claude-opus')) return 32000;
+      if (id.includes('claude-opus')) return 16384;
       if (id.includes('claude-sonnet-4')) return 16000;
       if (id.includes('claude-3-5-sonnet') || id.includes('claude-3.5-sonnet')) return 8192;
       if (id.includes('claude-3-5-haiku') || id.includes('claude-3.5-haiku')) return 8192;

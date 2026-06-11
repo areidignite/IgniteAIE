@@ -1,5 +1,9 @@
-import { FileText, Trash2, Search, X, Filter, MessageSquareText, ChevronDown, ChevronUp, Copy, Check, Maximize2 } from 'lucide-react';
+import { FileText, Trash2, Search, X, Filter, MessageSquareText, ChevronDown, ChevronUp, Copy, Check, Maximize2, Download, Loader2 } from 'lucide-react';
 import { useState, useMemo } from 'react';
+import { saveAs } from 'file-saver';
+import { Document as DocxDocument, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle, TableRow, TableCell, Table, WidthType } from 'docx';
+import { parseHtmlToParagraphs } from '../lib/exportDocument';
+import { getValidSession } from '../lib/supabase';
 import type { Document } from '../lib/supabase';
 
 type FilterMode = 'all' | 'rag' | 'direct';
@@ -20,6 +24,7 @@ export function DocumentList({ documents, selectedId, onSelect, onDelete, onView
   const [sortMode, setSortMode] = useState<SortMode>('newest');
   const [showFilters, setShowFilters] = useState(false);
   const [expandedPromptId, setExpandedPromptId] = useState<string | null>(null);
+  const [formattingDocId, setFormattingDocId] = useState<string | null>(null);
   const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
 
   const filteredDocuments = useMemo(() => {
@@ -75,6 +80,145 @@ export function DocumentList({ documents, selectedId, onSelect, onDelete, onView
     navigator.clipboard.writeText(prompt);
     setCopiedPromptId(docId);
     setTimeout(() => setCopiedPromptId(null), 2000);
+  };
+
+  const handleSaveDocument = async (e: React.MouseEvent, doc: Document) => {
+    e.stopPropagation();
+    setFormattingDocId(doc.id);
+
+    try {
+      const date = new Date(doc.created_at);
+      const formattedDate = date.toLocaleString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+
+      const metaRows: [string, string][] = [
+        ['Date', formattedDate],
+        ['Type', doc.used_knowledge_base ? 'RAG (Knowledge Base)' : 'Direct Inference'],
+      ];
+      if (doc.knowledge_base_name) metaRows.push(['Knowledge Base', doc.knowledge_base_name]);
+      if (doc.model_name) metaRows.push(['Model', doc.model_name]);
+      if (doc.model_arn) metaRows.push(['Model ARN', doc.model_arn]);
+
+      const metaTable = new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: metaRows.map(([label, value]) =>
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: 25, type: WidthType.PERCENTAGE },
+                children: [new Paragraph({ children: [new TextRun({ text: label, bold: true, font: 'Calibri', size: 20, color: '475569' })] })],
+                borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } },
+              }),
+              new TableCell({
+                width: { size: 75, type: WidthType.PERCENTAGE },
+                children: [new Paragraph({ children: [new TextRun({ text: value, font: 'Calibri', size: 20, color: '1e293b' })] })],
+                borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } },
+              }),
+            ],
+          })
+        ),
+      });
+
+      // Extract plain text from HTML content to send to LLM for formatting
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = doc.content;
+      const plainText = tempDiv.textContent || tempDiv.innerText || doc.content;
+
+      // Call the LLM to format the response content as clean HTML
+      let formattedContent = doc.content;
+      const session = await getValidSession();
+      if (session) {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const response = await fetch(`${supabaseUrl}/functions/v1/format-for-docx`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ content: plainText }),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          formattedContent = data.formattedHtml || doc.content;
+        }
+      }
+
+      const responseParagraphs = parseHtmlToParagraphs(formattedContent);
+
+    const children: Paragraph[] | (Paragraph | Table)[] = [
+      new Paragraph({
+        children: [new TextRun({ text: doc.title, font: 'Calibri', size: 36, bold: true, color: '0f172a' })],
+        heading: HeadingLevel.HEADING_1,
+        spacing: { after: 200 },
+        alignment: AlignmentType.CENTER,
+      }),
+      new Paragraph({ spacing: { after: 100 } }),
+      metaTable as any,
+      new Paragraph({
+        children: [new TextRun({ text: '', size: 10 })],
+        spacing: { after: 200 },
+        border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'cbd5e1' } },
+      }),
+      new Paragraph({
+        children: [new TextRun({ text: 'PROMPT', font: 'Calibri', size: 24, bold: true, color: '334155' })],
+        heading: HeadingLevel.HEADING_2,
+        spacing: { before: 240, after: 120 },
+      }),
+      ...doc.prompt.split('\n').map(line =>
+        new Paragraph({
+          children: [new TextRun({ text: line, font: 'Calibri', size: 22, italics: true, color: '475569' })],
+          spacing: { after: 80 },
+          indent: { left: 360 },
+        })
+      ),
+      new Paragraph({
+        children: [new TextRun({ text: '', size: 10 })],
+        spacing: { after: 200 },
+        border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'cbd5e1' } },
+      }),
+      new Paragraph({
+        children: [new TextRun({ text: 'RESPONSE', font: 'Calibri', size: 24, bold: true, color: '334155' })],
+        heading: HeadingLevel.HEADING_2,
+        spacing: { before: 240, after: 120 },
+      }),
+      ...responseParagraphs,
+    ];
+
+    const docx = new DocxDocument({
+      numbering: {
+        config: [
+          {
+            reference: 'default-numbering',
+            levels: [
+              { level: 0, format: 'decimal' as const, text: '%1.', alignment: AlignmentType.START },
+              { level: 1, format: 'lowerLetter' as const, text: '%2.', alignment: AlignmentType.START },
+              { level: 2, format: 'lowerRoman' as const, text: '%3.', alignment: AlignmentType.START },
+            ],
+          },
+        ],
+      },
+      sections: [{
+        properties: {
+          page: { margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } },
+        },
+        children: children as any[],
+      }],
+    });
+
+    const blob = await Packer.toBlob(docx);
+    const slug = doc.title.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '').substring(0, 50);
+    const dateSlug = date.toISOString().slice(0, 10);
+    const filename = `${slug}_${dateSlug}.docx`;
+    saveAs(blob, filename);
+    } finally {
+      setFormattingDocId(null);
+    }
   };
 
   const togglePrompt = (e: React.MouseEvent, docId: string) => {
@@ -266,6 +410,14 @@ export function DocumentList({ documents, selectedId, onSelect, onDelete, onView
                   )}
                 </div>
                 <div className="flex flex-col gap-1 flex-shrink-0">
+                  <button
+                    onClick={(e) => handleSaveDocument(e, doc)}
+                    disabled={formattingDocId === doc.id}
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 rounded transition-all text-emerald-600 dark:text-emerald-400 disabled:opacity-50"
+                    title="Save as Word document"
+                  >
+                    {formattingDocId === doc.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

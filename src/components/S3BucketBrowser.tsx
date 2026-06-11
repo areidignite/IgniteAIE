@@ -242,7 +242,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
 
       for (const file of fileArray) {
         try {
-          const key = file.name;
+          const key = currentPath ? `${currentPath}/${file.name}` : file.name;
 
           const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-upload-url`;
 
@@ -256,7 +256,8 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
             body: JSON.stringify({
               key,
               contentType: file.type || 'application/octet-stream',
-              knowledgeBaseId: selectedKnowledgeBase
+              knowledgeBaseId: selectedKnowledgeBase,
+              skipPrefix: true,
             }),
           });
 
@@ -450,6 +451,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
           key: folderKey,
           contentType: 'application/x-directory',
           knowledgeBaseId: selectedKnowledgeBase,
+          skipPrefix: true,
         }),
       });
 

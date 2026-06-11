@@ -66,6 +66,7 @@ export function PromptArea({ onSubmit, isLoading, onImprovePrompt, isImprovingPr
         body: JSON.stringify({
           key: fileKey,
           contentType: file.type || 'application/octet-stream',
+          knowledgeBaseId: selectedKnowledgeBase || undefined,
         }),
       });
 

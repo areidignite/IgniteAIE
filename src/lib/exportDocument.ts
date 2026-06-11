@@ -2,6 +2,97 @@ import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } fro
 import { saveAs } from 'file-saver';
 import html2pdf from 'html2pdf.js';
 
+function markdownToHtml(text: string): string {
+  const lines = text.split('\n');
+  const result: string[] = [];
+  let inUl = false;
+  let inOl = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+
+    // Close open lists if line is not a list item
+    const isBullet = /^\s*[-*•]\s+/.test(line);
+    const isNumbered = /^\s*(?:\d+\.|[a-z]\.)\s+/i.test(line);
+
+    if (!isBullet && inUl) {
+      result.push('</ul>');
+      inUl = false;
+    }
+    if (!isNumbered && inOl) {
+      result.push('</ol>');
+      inOl = false;
+    }
+
+    // Headings
+    if (/^####\s+(.+)$/.test(line)) {
+      const match = line.match(/^####\s+(.+)$/);
+      result.push(`<h4>${match![1]}</h4>`);
+      continue;
+    }
+    if (/^###\s+(.+)$/.test(line)) {
+      const match = line.match(/^###\s+(.+)$/);
+      result.push(`<h3>${match![1]}</h3>`);
+      continue;
+    }
+    if (/^##\s+(.+)$/.test(line)) {
+      const match = line.match(/^##\s+(.+)$/);
+      result.push(`<h2>${match![1]}</h2>`);
+      continue;
+    }
+    if (/^#\s+(.+)$/.test(line)) {
+      const match = line.match(/^#\s+(.+)$/);
+      result.push(`<h1>${match![1]}</h1>`);
+      continue;
+    }
+
+    // Bullet list items
+    if (isBullet) {
+      if (!inUl) {
+        result.push('<ul>');
+        inUl = true;
+      }
+      const content = line.replace(/^\s*[-*•]\s+/, '');
+      result.push(`<li>${applyInlineFormatting(content)}</li>`);
+      continue;
+    }
+
+    // Numbered list items
+    if (isNumbered) {
+      if (!inOl) {
+        result.push('<ol>');
+        inOl = true;
+      }
+      const content = line.replace(/^\s*(?:\d+\.|[a-z]\.)\s+/i, '');
+      result.push(`<li>${applyInlineFormatting(content)}</li>`);
+      continue;
+    }
+
+    // Empty line
+    if (line.trim() === '') {
+      continue;
+    }
+
+    // Regular paragraph
+    result.push(`<p>${applyInlineFormatting(line)}</p>`);
+  }
+
+  if (inUl) result.push('</ul>');
+  if (inOl) result.push('</ol>');
+
+  return result.join('\n');
+}
+
+function applyInlineFormatting(text: string): string {
+  // Bold: **text** or __text__
+  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  text = text.replace(/__(.+?)__/g, '<strong>$1</strong>');
+  // Italic: *text* or _text_
+  text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  text = text.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em>$1</em>');
+  return text;
+}
+
 interface FilePickerAcceptType {
   description: string;
   accept: Record<string, string[]>;
@@ -50,9 +141,40 @@ interface RunOptions {
   color?: string;
 }
 
-function parseHtmlToParagraphs(html: string): Paragraph[] {
+export function parseHtmlToParagraphs(html: string): Paragraph[] {
+  const hasHtmlTags = /<(p|h[1-6]|ul|ol|li|div|blockquote|table)\b/i.test(html);
+  const hasMarkdown = /\*\*[^*]+\*\*|^#{1,4}\s|^\s*[-*•]\s+|^\s*\d+\.\s+/m.test(html);
+
+  // If it's markdown (or mixed), convert to HTML first
+  let processableHtml = html;
+  if (!hasHtmlTags && hasMarkdown) {
+    processableHtml = markdownToHtml(html);
+  } else if (!hasHtmlTags && !hasMarkdown) {
+    // Pure plain text with no structure
+    const paragraphs: Paragraph[] = [];
+    const blocks = html.split(/\n{2,}|\s{2,}(?=[A-Z])/);
+    for (const block of blocks) {
+      const trimmed = block.trim();
+      if (trimmed) {
+        paragraphs.push(
+          new Paragraph({
+            children: [new TextRun({ text: trimmed, font: 'Calibri', size: 22 })],
+            spacing: { after: 120 },
+          })
+        );
+      }
+    }
+    return paragraphs.length > 0 ? paragraphs : [
+      new Paragraph({ children: [new TextRun({ text: html.trim(), font: 'Calibri', size: 22 })] })
+    ];
+  } else if (hasHtmlTags && hasMarkdown) {
+    // HTML but might have inline markdown (like **bold**) - apply inline fixes
+    processableHtml = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    processableHtml = processableHtml.replace(/__(.+?)__/g, '<strong>$1</strong>');
+  }
+
   const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
+  const doc = parser.parseFromString(processableHtml, 'text/html');
   const paragraphs: Paragraph[] = [];
 
   function getAlignment(el: Element): typeof AlignmentType[keyof typeof AlignmentType] | undefined {
@@ -108,6 +230,15 @@ function parseHtmlToParagraphs(html: string): Paragraph[] {
           heading: level,
           alignment: align,
           spacing: { before: 240, after: 120 },
+        })
+      );
+    } else if (tag === 'h4' || tag === 'h5' || tag === 'h6') {
+      const runs = extractRunOptions(node).map(r => ({ ...r, bold: true, size: 24 }));
+      paragraphs.push(
+        new Paragraph({
+          children: toTextRuns(runs),
+          alignment: align,
+          spacing: { before: 200, after: 100 },
         })
       );
     } else if (tag === 'p') {
@@ -216,11 +347,25 @@ function parseHtmlToParagraphs(html: string): Paragraph[] {
   if (paragraphs.length === 0) {
     const text = doc.body.textContent || '';
     if (text.trim()) {
-      paragraphs.push(
-        new Paragraph({
-          children: [new TextRun({ text: text.trim(), font: 'Calibri', size: 22 })],
-        })
-      );
+      const blocks = text.split(/\n\n+|\.\s{2,}/);
+      for (const block of blocks) {
+        const trimmed = block.trim();
+        if (trimmed) {
+          paragraphs.push(
+            new Paragraph({
+              children: [new TextRun({ text: trimmed + (trimmed.endsWith('.') ? '' : '.'), font: 'Calibri', size: 22 })],
+              spacing: { after: 120 },
+            })
+          );
+        }
+      }
+      if (paragraphs.length === 0) {
+        paragraphs.push(
+          new Paragraph({
+            children: [new TextRun({ text: text.trim(), font: 'Calibri', size: 22 })],
+          })
+        );
+      }
     }
   }
 
