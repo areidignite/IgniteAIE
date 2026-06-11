@@ -1,13 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables. Please check your .env file.');
-  console.error('VITE_SUPABASE_URL:', supabaseUrl ? 'loaded' : 'missing');
-  console.error('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'loaded' : 'missing');
-}
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://rpyogtifhvpxjqybxmly.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_PqVDpXj3P0lJKz48R-Y-Hg_dfxGNCbO';
 
 // In-memory storage fallback for when localStorage is blocked
 class MemoryStorage {
@@ -39,8 +33,8 @@ try {
 }
 
 export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-key',
+  supabaseUrl,
+  supabaseAnonKey,
   {
     auth: {
       autoRefreshToken: true,
