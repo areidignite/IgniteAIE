@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { FileText, LogOut, Info, Trash2, Sun, Moon } from 'lucide-react';
 import { supabase, getValidSession, type Document } from './lib/supabase';
 import { AuthForm } from './components/AuthForm';
@@ -112,40 +112,56 @@ function App() {
   const [showTemplateManager, setShowTemplateManager] = useState(false);
   const [viewFullDocument, setViewFullDocument] = useState<Document | null>(null);
   const [templateManagerInitialContent, setTemplateManagerInitialContent] = useState<string | undefined>(undefined);
-  const lastTokenRef = useRef<string | null>(null);
   const { saveStatus: workspaceSaveStatus, saveNow: saveWorkspaceNow } = useAutoSaveWorkspace(user?.id, workspaceContent);
 
   useEffect(() => {
+    let mounted = true;
+
     const checkStorage = () => {
       try {
         localStorage.setItem('test', 'test');
         localStorage.removeItem('test');
         setStorageBlocked(false);
       } catch (e) {
-        console.error('localStorage blocked:', e);
         setStorageBlocked(true);
       }
     };
 
     checkStorage();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      const newToken = session?.access_token ?? null;
+    const initSession = async () => {
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (!mounted) return;
+        if (currentSession) {
+          setUser(currentSession.user);
+          setSession(currentSession);
+        }
+      } catch (e) {
+        // no session available
+      }
+      if (mounted) setLoading(false);
+    };
 
-      if (event === 'SIGNED_OUT') {
-        lastTokenRef.current = null;
+    initSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (!mounted) return;
+      if (event === 'SIGNED_IN') {
+        setUser(newSession?.user ?? null);
+        setSession(newSession);
+        setLoading(false);
+      } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setSession(null);
-      } else if (newToken && newToken !== lastTokenRef.current) {
-        lastTokenRef.current = newToken;
-        setUser(session?.user ?? null);
-        setSession(session);
+        setLoading(false);
       }
-
-      setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
