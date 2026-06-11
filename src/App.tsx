@@ -158,7 +158,7 @@ function App() {
       fetchKnowledgeBases();
       loadTemplates();
     }
-  }, [user, session]);
+  }, [user?.id, session?.access_token]);
 
   useEffect(() => {
     if (useKnowledgeBase && models.length > 0) {

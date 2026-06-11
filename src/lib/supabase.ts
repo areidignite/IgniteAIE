@@ -57,19 +57,7 @@ export async function getValidSession() {
     if (error || !session) {
       return null;
     }
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (!userError && user) {
-      return session;
-    }
-
-    const { data: { session: refreshed }, error: refreshError } = await supabase.auth.refreshSession();
-    if (refreshError || !refreshed) {
-      return null;
-    }
-
-    return refreshed;
+    return session;
   } catch {
     return null;
   }
