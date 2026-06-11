@@ -7,40 +7,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Missing Supabase environment variables. Please check your .env file.');
 }
 
-class MemoryStorage {
-  private storage: Map<string, string> = new Map();
-
-  getItem(key: string): string | null {
-    return this.storage.get(key) || null;
-  }
-
-  setItem(key: string, value: string): void {
-    this.storage.set(key, value);
-  }
-
-  removeItem(key: string): void {
-    this.storage.delete(key);
-  }
-}
-
-let storageAdapter: Storage | MemoryStorage;
-try {
-  localStorage.setItem('__test__', 'test');
-  localStorage.removeItem('__test__');
-  storageAdapter = window.localStorage;
-} catch (e) {
-  storageAdapter = new MemoryStorage();
-}
-
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
   supabaseAnonKey || 'placeholder-key',
   {
     auth: {
       autoRefreshToken: false,
-      persistSession: true,
+      persistSession: false,
       detectSessionInUrl: false,
-      storage: storageAdapter as Storage
     }
   }
 );
