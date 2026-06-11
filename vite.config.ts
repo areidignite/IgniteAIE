@@ -5,9 +5,6 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    watch: {
-      usePolling: false,
-      ignored: ['**/node_modules/**', '**/.bolt/**', '**/dist/**'],
-    },
+    hmr: false,
   },
 })
