@@ -140,7 +140,18 @@ function App() {
       if (mounted) setLoading(false);
     });
 
-    return () => { mounted = false; };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (!mounted) return;
+      if (event === 'TOKEN_REFRESHED' && newSession) {
+        setSession(newSession);
+        setUser(newSession.user);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
