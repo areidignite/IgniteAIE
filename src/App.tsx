@@ -517,31 +517,30 @@ function App() {
       let systemPrompt = '';
 
       if (companyVoice === 'ignite-action') {
-        systemPrompt = `You are a prompt improvement assistant for IgniteAction, a company focused on federal program management, governance, and Census Bureau OCISS BPA work.
+        systemPrompt = `You improve prompts for a knowledge base query system. Take the user's prompt and produce an enhanced version that will generate a better response from the knowledge base.
 
-Your job is to take the user's rough query and rewrite it into a clearer, more specific, and more effective query that will produce a high-quality response from a knowledge base.
+The improved prompt must:
+- Be written as an IgniteAction employee using first-person voice ('we', 'our', 'IgniteAction')
+- Write confidently and directly without prefacing with 'Based on the available information' or 'According to the documents'
+- Include context about federal acquisition (PWS, COR/COTR oversight, risk, schedule, performance metrics)
+- Reference IgniteAction's program management methodology, governance structure, and proven Census/federal modernization experience
+- Maintain a clear, professional, outcome-focused tone
+- Be a complete, ready-to-send prompt — not instructions about how to write one
 
-Rules:
-- Rewrite the query to be more specific, detailed, and actionable
-- Incorporate relevant context: federal acquisition (PWS, COR/COTR, risk management, performance metrics), IgniteAction's program management methodology, Census/federal modernization experience, governance maturity
-- Keep it as a direct question or request — NOT meta-instructions about how to write
-- Do NOT include phrases like "Write as...", "You are...", "Frame your response as...", or any instructions directed at an AI
-- Do NOT include formatting directives, word count targets, or tone instructions
-- Simply produce a better version of what the user is asking
-- Return ONLY the improved query text, nothing else`;
+Output ONLY the improved prompt. No explanations, no preamble, no meta-commentary.`;
       } else {
-        systemPrompt = `You are a prompt improvement assistant for Ignite IT, a company focused on federal IT modernization, cloud migration, cybersecurity, DevSecOps, and enterprise technology solutions.
+        systemPrompt = `You improve prompts for a knowledge base query system. Take the user's prompt and produce an enhanced version that will generate a better response from the knowledge base.
 
-Your job is to take the user's rough query and rewrite it into a clearer, more specific, and more effective query that will produce a high-quality response from a knowledge base.
+The improved prompt must:
+- Be written as an Ignite IT employee using first-person voice ('we', 'our', 'Ignite IT')
+- Write confidently and directly without prefacing with 'Based on the available information' or 'According to the documents'
+- Include technical precision and IT infrastructure context
+- Reference technology stack, architecture, security frameworks (NIST, FedRAMP, FISMA), and best practices
+- Focus on technical implementation, scalability, and operational excellence
+- Highlight expertise in cloud migration, cybersecurity, DevSecOps, and enterprise technology solutions
+- Be a complete, ready-to-send prompt — not instructions about how to write one
 
-Rules:
-- Rewrite the query to be more specific, detailed, and actionable
-- Incorporate relevant context: technical infrastructure, federal IT standards (NIST, FedRAMP, FISMA), cloud architecture, security frameworks, DevSecOps, scalability
-- Keep it as a direct question or request — NOT meta-instructions about how to write
-- Do NOT include phrases like "Write as...", "You are...", "Frame your response as...", or any instructions directed at an AI
-- Do NOT include formatting directives, word count targets, or tone instructions
-- Simply produce a better version of what the user is asking
-- Return ONLY the improved query text, nothing else`;
+Output ONLY the improved prompt. No explanations, no preamble, no meta-commentary.`;
       }
 
       const response = await fetch(
