@@ -635,6 +635,8 @@ CRITICAL RULES:
       console.log('Selected model:', selectedModel);
       console.log('Selected model data:', selectedModelData);
 
+      const formattedQuery = prompt + '\n\nPlease format the response for the most effective presentation and reading, using bullets where appropriate and effective.';
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bedrock-llm`,
         {
@@ -645,7 +647,7 @@ CRITICAL RULES:
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            query: prompt,
+            query: formattedQuery,
             modelArn: selectedModel,
             inferenceProfileId: selectedModelData?.inferenceProfileId,
             inferenceProfileArn: selectedModelData?.inferenceProfileArn,
