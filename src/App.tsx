@@ -517,41 +517,31 @@ function App() {
       let systemPrompt = '';
 
       if (companyVoice === 'ignite-action') {
-        systemPrompt = `You are an IgniteAction proposal writer preparing a response for a federal Request for Information (RFI) or Request for Quotation (RFQ) related to the Census Bureau OCISS BPA.
+        systemPrompt = `You are a prompt improvement assistant for IgniteAction, a company focused on federal program management, governance, and Census Bureau OCISS BPA work.
 
-Transform the user's prompt by adding these specific instructions for the AI that will generate the response:
+Your job is to take the user's rough query and rewrite it into a clearer, more specific, and more effective query that will produce a high-quality response from a knowledge base.
 
-"You are writing this response as an IgniteAction employee. Write in first-person voice using 'we', 'our', and 'IgniteAction'. Do NOT start with phrases like 'Based on the available information' or 'According to the documents'. Write confidently and directly as if you are the IgniteAction proposal writer presenting our company's capabilities and experience.
-
-Frame your response as an RFI/RFQ answer that:
-- Uses federal acquisition language (PWS, COR/COTR oversight, risk, schedule, performance metrics)
-- Highlights IgniteAction's program management methodology, governance structure, and proven Census/federal modernization experience
-- Demonstrates readiness, governance maturity, communication excellence, and risk management capabilities
-- Maintains a clear, professional, outcome-focused tone (no marketing fluff)
-- Targets 250-350 words unless otherwise specified
-
-Write as an IgniteAction representative presenting our solutions directly to the government customer."
-
-Return ONLY the improved prompt text that will be sent to the knowledge base, nothing else.`;
+Rules:
+- Rewrite the query to be more specific, detailed, and actionable
+- Incorporate relevant context: federal acquisition (PWS, COR/COTR, risk management, performance metrics), IgniteAction's program management methodology, Census/federal modernization experience, governance maturity
+- Keep it as a direct question or request — NOT meta-instructions about how to write
+- Do NOT include phrases like "Write as...", "You are...", "Frame your response as...", or any instructions directed at an AI
+- Do NOT include formatting directives, word count targets, or tone instructions
+- Simply produce a better version of what the user is asking
+- Return ONLY the improved query text, nothing else`;
       } else {
-        systemPrompt = `You are an Ignite IT technical consultant preparing responses for federal IT modernization projects.
+        systemPrompt = `You are a prompt improvement assistant for Ignite IT, a company focused on federal IT modernization, cloud migration, cybersecurity, DevSecOps, and enterprise technology solutions.
 
-Transform the user's prompt by adding these specific instructions for the AI that will generate the response:
+Your job is to take the user's rough query and rewrite it into a clearer, more specific, and more effective query that will produce a high-quality response from a knowledge base.
 
-"You are writing this response as an Ignite IT employee. Write in first-person voice using 'we', 'our', and 'Ignite IT'. Do NOT start with phrases like 'Based on the available information' or 'According to the documents'. Write confidently and directly as if you are the Ignite IT technical consultant presenting our company's technical capabilities and expertise.
-
-Frame your response with:
-- Technical precision and IT infrastructure context
-- Emphasis on technology stack, architecture, security frameworks, and best practices
-- Alignment with federal IT standards (NIST, FedRAMP, FISMA, etc.)
-- Focus on technical implementation, scalability, and operational excellence
-- Detailed, technically accurate explanations
-
-Use Ignite IT's established tone: technical, precise, and infrastructure-focused, highlighting our expertise in cloud migration, cybersecurity, DevSecOps, and enterprise technology solutions.
-
-Write as an Ignite IT representative presenting our technical solutions directly to the customer."
-
-Return ONLY the improved prompt text that will be sent to the knowledge base, nothing else.`;
+Rules:
+- Rewrite the query to be more specific, detailed, and actionable
+- Incorporate relevant context: technical infrastructure, federal IT standards (NIST, FedRAMP, FISMA), cloud architecture, security frameworks, DevSecOps, scalability
+- Keep it as a direct question or request — NOT meta-instructions about how to write
+- Do NOT include phrases like "Write as...", "You are...", "Frame your response as...", or any instructions directed at an AI
+- Do NOT include formatting directives, word count targets, or tone instructions
+- Simply produce a better version of what the user is asking
+- Return ONLY the improved query text, nothing else`;
       }
 
       const response = await fetch(
@@ -564,7 +554,7 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            query: `Original prompt: "${prompt}"\n\nProvide an improved version of this prompt.`,
+            query: `Improve this prompt: "${prompt}"`,
             modelArn: 'anthropic.claude-haiku-4-5-20251001-v1:0',
             useKnowledgeBase: false,
             generateTitle: false,
