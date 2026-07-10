@@ -628,8 +628,8 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
   }, []);
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-3">
+    <div className="flex flex-col h-full">
+      <div className="space-y-3 flex-shrink-0">
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => fetchObjects(true)}
@@ -718,7 +718,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
       </div>
 
       {!filterText && (
-        <div className="mb-4 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 overflow-x-auto pb-2">
+        <div className="mt-3 mb-2 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 overflow-x-auto pb-2 flex-shrink-0">
           <button
             onClick={() => navigateToPath('')}
             className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex-shrink-0"
@@ -744,7 +744,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
       )}
 
       {showNewFolderInput && (
-        <div className="flex items-center gap-2 p-3 rounded-lg border-2 border-sky-300 dark:border-sky-600 bg-sky-50 dark:bg-sky-900/20">
+        <div className="flex items-center gap-2 p-3 rounded-lg border-2 border-sky-300 dark:border-sky-600 bg-sky-50 dark:bg-sky-900/20 flex-shrink-0">
           <FolderPlus className="w-5 h-5 text-sky-500 dark:text-sky-400 flex-shrink-0" />
           <input
             ref={folderInputRef}
@@ -784,12 +784,14 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
       )}
 
       {items.length === 0 && !loading ? (
-        <div className="text-center py-8 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 rounded-lg">
-          <FolderOpen className="w-12 h-12 mx-auto mb-3" />
-          <p>{filterText ? 'No files match your search' : currentPath ? 'Empty folder' : 'No Files Found'}</p>
+        <div className="flex-1 flex items-center justify-center text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 rounded-lg mt-3">
+          <div className="text-center py-8">
+            <FolderOpen className="w-12 h-12 mx-auto mb-3" />
+            <p>{filterText ? 'No files match your search' : currentPath ? 'Empty folder' : 'No Files Found'}</p>
+          </div>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="flex-1 overflow-y-auto mt-3 space-y-1">
           {items.map((item) => {
             const fileCount = item.isFolder ? getFilesInFolder(item.path).filter(obj => !obj.Key.endsWith('/.folder')).length : 0;
 
@@ -797,7 +799,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
               <div
                 key={item.path}
                 onClick={() => handleItemClick(item)}
-                className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg border transition-all ${
                   item.isFolder
                     ? 'cursor-pointer border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50'
                     : 'border-slate-200 dark:border-slate-700'
@@ -870,7 +872,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
       )}
 
       {hasMore && (
-        <div className="text-center">
+        <div className="text-center pt-3 flex-shrink-0">
           <button
             onClick={() => fetchObjects(false)}
             disabled={loading}
