@@ -28,8 +28,6 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
   const [allObjects, setAllObjects] = useState<S3Object[]>([]);
   const [loading, setLoading] = useState(false);
   const [filterText, setFilterText] = useState('');
-  const [continuationToken, setContinuationToken] = useState<string | undefined>(undefined);
-  const [hasMore, setHasMore] = useState(false);
   const [loadingUrl, setLoadingUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [deletingKey, setDeletingKey] = useState<string | null>(null);
@@ -44,7 +42,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
   const folderInputRef = useRef<HTMLInputElement>(null);
   const statusCheckIntervalRef = useRef<number | null>(null);
 
-  const fetchObjects = async (resetList = false) => {
+  const fetchObjects = async () => {
     setLoading(true);
     try {
       const session = await getValidSession();
@@ -55,34 +53,40 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
       }
 
       const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-s3-objects`;
-      const params = new URLSearchParams();
-      if (!resetList && continuationToken) params.append('continuationToken', continuationToken);
-      if (selectedKnowledgeBase) params.append('knowledgeBaseId', selectedKnowledgeBase);
+      let allFetched: S3Object[] = [];
+      let nextToken: string | undefined = undefined;
+      let hasMorePages = true;
 
-      const response = await fetch(`${apiUrl}?${params.toString()}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          'Content-Type': 'application/json',
-        },
-      });
+      while (hasMorePages) {
+        const params = new URLSearchParams();
+        if (nextToken) params.append('continuationToken', nextToken);
+        if (selectedKnowledgeBase) params.append('knowledgeBaseId', selectedKnowledgeBase);
 
-      if (!response.ok) {
-        const error = await response.json();
-        console.error('Full error response:', error);
-        throw new Error(error.message || error.error || 'Failed to fetch S3 objects');
+        const response = await fetch(`${apiUrl}?${params.toString()}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          console.error('Full error response:', error);
+          throw new Error(error.message || error.error || 'Failed to fetch S3 objects');
+        }
+
+        const data = await response.json();
+        allFetched = [...allFetched, ...(data.Contents || [])];
+
+        if (data.IsTruncated && data.NextContinuationToken) {
+          nextToken = data.NextContinuationToken;
+        } else {
+          hasMorePages = false;
+        }
       }
 
-      const data = await response.json();
-
-      if (resetList) {
-        setAllObjects(data.Contents || []);
-      } else {
-        setAllObjects(prev => [...prev, ...(data.Contents || [])]);
-      }
-
-      setHasMore(data.IsTruncated || false);
-      setContinuationToken(data.NextContinuationToken);
+      setAllObjects(allFetched);
     } catch (error) {
       console.error('Error fetching S3 objects:', error);
       onError(error instanceof Error ? error.message : 'Failed to fetch S3 objects');
@@ -93,7 +97,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
 
   useEffect(() => {
     if (selectedKnowledgeBase) {
-      fetchObjects(true);
+      fetchObjects();
     } else {
       setAllObjects([]);
     }
@@ -288,7 +292,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
         }
       }
 
-      await fetchObjects(true);
+      await fetchObjects();
 
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -343,7 +347,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
         throw new Error(error.error || 'Failed to delete file');
       }
 
-      await fetchObjects(true);
+      await fetchObjects();
     } catch (error) {
       console.error('Error deleting file:', error);
       onError(error instanceof Error ? error.message : 'Failed to delete file');
@@ -401,7 +405,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
         throw new Error(error.error || 'Failed to delete folder');
       }
 
-      await fetchObjects(true);
+      await fetchObjects();
     } catch (error) {
       console.error('Error deleting folder:', error);
       onError(error instanceof Error ? error.message : 'Failed to delete folder');
@@ -476,7 +480,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
 
       setNewFolderName('');
       setShowNewFolderInput(false);
-      await fetchObjects(true);
+      await fetchObjects();
     } catch (error) {
       console.error('Error creating folder:', error);
       onError(error instanceof Error ? error.message : 'Failed to create folder');
@@ -632,7 +636,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
       <div className="space-y-3 flex-shrink-0">
         <div className="flex items-center gap-2 flex-wrap">
           <button
-            onClick={() => fetchObjects(true)}
+            onClick={() => fetchObjects()}
             disabled={loading}
             className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
           >
@@ -871,25 +875,13 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
         </div>
       )}
 
-      {hasMore && (
-        <div className="text-center pt-3 flex-shrink-0">
-          <button
-            onClick={() => fetchObjects(false)}
-            disabled={loading}
-            className="px-6 py-2 bg-slate-600 dark:bg-slate-700 text-white rounded-lg hover:bg-slate-700 dark:hover:bg-slate-600 transition-colors disabled:opacity-50"
-          >
-            {loading ? 'Loading...' : 'Load More'}
-          </button>
-        </div>
-      )}
-
       {showRepositoryBrowser && (
         <RepositoryBrowser
           onError={onError}
           selectedKnowledgeBase={selectedKnowledgeBase}
           onClose={() => {
             setShowRepositoryBrowser(false);
-            fetchObjects(true);
+            fetchObjects();
           }}
         />
       )}
