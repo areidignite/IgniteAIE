@@ -28,6 +28,8 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
   const [allObjects, setAllObjects] = useState<S3Object[]>([]);
   const [loading, setLoading] = useState(false);
   const [filterText, setFilterText] = useState('');
+  const [continuationToken, setContinuationToken] = useState<string | undefined>(undefined);
+  const [hasMore, setHasMore] = useState(false);
   const [loadingUrl, setLoadingUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [deletingKey, setDeletingKey] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
   const folderInputRef = useRef<HTMLInputElement>(null);
   const statusCheckIntervalRef = useRef<number | null>(null);
 
-  const fetchObjects = async () => {
+  const fetchObjects = async (resetList = false) => {
     setLoading(true);
     try {
       const session = await getValidSession();
@@ -53,40 +55,34 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
       }
 
       const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-s3-objects`;
-      let allFetched: S3Object[] = [];
-      let nextToken: string | undefined = undefined;
-      let hasMorePages = true;
+      const params = new URLSearchParams();
+      if (!resetList && continuationToken) params.append('continuationToken', continuationToken);
+      if (selectedKnowledgeBase) params.append('knowledgeBaseId', selectedKnowledgeBase);
 
-      while (hasMorePages) {
-        const params = new URLSearchParams();
-        if (nextToken) params.append('continuationToken', nextToken);
-        if (selectedKnowledgeBase) params.append('knowledgeBaseId', selectedKnowledgeBase);
+      const response = await fetch(`${apiUrl}?${params.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json',
+        },
+      });
 
-        const response = await fetch(`${apiUrl}?${params.toString()}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          console.error('Full error response:', error);
-          throw new Error(error.message || error.error || 'Failed to fetch S3 objects');
-        }
-
-        const data = await response.json();
-        allFetched = [...allFetched, ...(data.Contents || [])];
-
-        if (data.IsTruncated && data.NextContinuationToken) {
-          nextToken = data.NextContinuationToken;
-        } else {
-          hasMorePages = false;
-        }
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('Full error response:', error);
+        throw new Error(error.message || error.error || 'Failed to fetch S3 objects');
       }
 
-      setAllObjects(allFetched);
+      const data = await response.json();
+
+      if (resetList) {
+        setAllObjects(data.Contents || []);
+      } else {
+        setAllObjects(prev => [...prev, ...(data.Contents || [])]);
+      }
+
+      setHasMore(data.IsTruncated || false);
+      setContinuationToken(data.NextContinuationToken);
     } catch (error) {
       console.error('Error fetching S3 objects:', error);
       onError(error instanceof Error ? error.message : 'Failed to fetch S3 objects');
@@ -97,7 +93,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
 
   useEffect(() => {
     if (selectedKnowledgeBase) {
-      fetchObjects();
+      fetchObjects(true);
     } else {
       setAllObjects([]);
     }
@@ -292,7 +288,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
         }
       }
 
-      await fetchObjects();
+      await fetchObjects(true);
 
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -347,7 +343,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
         throw new Error(error.error || 'Failed to delete file');
       }
 
-      await fetchObjects();
+      await fetchObjects(true);
     } catch (error) {
       console.error('Error deleting file:', error);
       onError(error instanceof Error ? error.message : 'Failed to delete file');
@@ -405,7 +401,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
         throw new Error(error.error || 'Failed to delete folder');
       }
 
-      await fetchObjects();
+      await fetchObjects(true);
     } catch (error) {
       console.error('Error deleting folder:', error);
       onError(error instanceof Error ? error.message : 'Failed to delete folder');
@@ -480,7 +476,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
 
       setNewFolderName('');
       setShowNewFolderInput(false);
-      await fetchObjects();
+      await fetchObjects(true);
     } catch (error) {
       console.error('Error creating folder:', error);
       onError(error instanceof Error ? error.message : 'Failed to create folder');
@@ -632,11 +628,11 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
   }, []);
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="space-y-3 flex-shrink-0">
+    <div className="space-y-4">
+      <div className="space-y-3">
         <div className="flex items-center gap-2 flex-wrap">
           <button
-            onClick={() => fetchObjects()}
+            onClick={() => fetchObjects(true)}
             disabled={loading}
             className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
           >
@@ -722,7 +718,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
       </div>
 
       {!filterText && (
-        <div className="mt-3 mb-2 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 overflow-x-auto pb-2 flex-shrink-0">
+        <div className="mb-4 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 overflow-x-auto pb-2">
           <button
             onClick={() => navigateToPath('')}
             className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex-shrink-0"
@@ -748,7 +744,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
       )}
 
       {showNewFolderInput && (
-        <div className="flex items-center gap-2 p-3 rounded-lg border-2 border-sky-300 dark:border-sky-600 bg-sky-50 dark:bg-sky-900/20 flex-shrink-0">
+        <div className="flex items-center gap-2 p-3 rounded-lg border-2 border-sky-300 dark:border-sky-600 bg-sky-50 dark:bg-sky-900/20">
           <FolderPlus className="w-5 h-5 text-sky-500 dark:text-sky-400 flex-shrink-0" />
           <input
             ref={folderInputRef}
@@ -788,14 +784,12 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
       )}
 
       {items.length === 0 && !loading ? (
-        <div className="flex-1 flex items-center justify-center text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 rounded-lg mt-3">
-          <div className="text-center py-8">
-            <FolderOpen className="w-12 h-12 mx-auto mb-3" />
-            <p>{filterText ? 'No files match your search' : currentPath ? 'Empty folder' : 'No Files Found'}</p>
-          </div>
+        <div className="text-center py-8 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 rounded-lg">
+          <FolderOpen className="w-12 h-12 mx-auto mb-3" />
+          <p>{filterText ? 'No files match your search' : currentPath ? 'Empty folder' : 'No Files Found'}</p>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto mt-3 space-y-1">
+        <div className="space-y-2">
           {items.map((item) => {
             const fileCount = item.isFolder ? getFilesInFolder(item.path).filter(obj => !obj.Key.endsWith('/.folder')).length : 0;
 
@@ -803,7 +797,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
               <div
                 key={item.path}
                 onClick={() => handleItemClick(item)}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg border transition-all ${
+                className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
                   item.isFolder
                     ? 'cursor-pointer border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50'
                     : 'border-slate-200 dark:border-slate-700'
@@ -875,13 +869,25 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
         </div>
       )}
 
+      {hasMore && (
+        <div className="text-center">
+          <button
+            onClick={() => fetchObjects(false)}
+            disabled={loading}
+            className="px-6 py-2 bg-slate-600 dark:bg-slate-700 text-white rounded-lg hover:bg-slate-700 dark:hover:bg-slate-600 transition-colors disabled:opacity-50"
+          >
+            {loading ? 'Loading...' : 'Load More'}
+          </button>
+        </div>
+      )}
+
       {showRepositoryBrowser && (
         <RepositoryBrowser
           onError={onError}
           selectedKnowledgeBase={selectedKnowledgeBase}
           onClose={() => {
             setShowRepositoryBrowser(false);
-            fetchObjects();
+            fetchObjects(true);
           }}
         />
       )}

@@ -928,8 +928,8 @@ Return ONLY the improved prompt text that will be sent to the knowledge base, no
                     </>
                   ) : (
                     <>
-                      <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 flex-shrink-0">Knowledge Base Contents</h2>
-                      <div className="flex-1 overflow-hidden">
+                      <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4">Knowledge Base Contents</h2>
+                      <div className="flex-1 overflow-y-auto">
                         <S3BucketBrowser
                           onError={setError}
                           selectedKnowledgeBase={selectedKnowledgeBase}
