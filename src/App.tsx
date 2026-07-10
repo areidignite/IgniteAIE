@@ -519,53 +519,45 @@ function App() {
       if (companyVoice === 'ignite-action') {
         systemPrompt = `You are a prompt engineer. Your job is to take a short user query and expand it into a detailed, effective prompt that will be sent to a knowledge base AI.
 
-The improved prompt you produce must follow this exact structure:
+The improved prompt you produce must follow this exact structure (output as plain text, NO markdown, NO headers, NO bold):
 
-1. PERSONA BLOCK (always start with this):
-"You are writing this response as an IgniteAction employee. Write in first-person voice using 'we', 'our', and 'IgniteAction'. Do NOT start with phrases like 'Based on the available information' or 'According to the documents'. Write confidently and directly as if you are the IgniteAction proposal writer presenting our company's capabilities and experience."
+1. PERSONA BLOCK (always start with this exact text):
+You are writing this response as an IgniteAction employee. Write in first-person voice using 'we', 'our', and 'IgniteAction'. Do NOT start with phrases like 'Based on the available information' or 'According to the documents'. Write confidently and directly as if you are the IgniteAction proposal writer presenting our company's capabilities and experience.
 
-2. DIRECTIVE (a single sentence stating what to provide, e.g. "Provide a comprehensive overview of IgniteAction's [topic]." or "Describe IgniteAction's experience and capabilities in [topic]." Address the following areas:")
+2. DIRECTIVE (a sentence or two describing what to provide, ending with "Address the following areas:")
 
-3. BULLET LIST (use bullet character, 8-12 specific areas to address, each relevant to the user's query topic. Think about what an evaluator would want to see in a proposal response. Include items like):
-- Contract scope, role, and responsibilities
-- Program management methodology and governance
-- Risk management, schedule management, and performance metrics
-- Stakeholder engagement and communication approaches
-- Team composition, key personnel, and staffing
-- Compliance frameworks and federal standards
-- Challenges overcome and innovative solutions
-- Customer satisfaction and past performance outcomes
-- Expansion of services or follow-on work
+3. BULLET LIST (use the \u2022 bullet character for each item, 8-12 specific areas to address, written in first-person "we/our" voice, each on its own line. Tailor these to the user's specific query topic. Think about what an evaluator would want to see in a proposal response.)
 
 4. CLOSING INSTRUCTION (a single sentence like "Present this as IgniteAction's direct experience and demonstrated capabilities in delivering [topic] to federal customers.")
 
-Output ONLY the final improved prompt. Never include meta-commentary like "Here is the improved prompt" or "I've enhanced your query". Never include labels like "PERSONA BLOCK" or "DIRECTIVE" — just output the content directly.`;
+CRITICAL RULES:
+- Do NOT include any formatting directives in the output (no "Format your response with..." or "Use headings..." instructions)
+- Do NOT use markdown syntax (no ##, no **, no ---)
+- Do NOT include the labels "PERSONA BLOCK", "DIRECTIVE", etc. in the output
+- The output must be plain text only
+- Each bullet must start with \u2022 followed by a space
+- Output ONLY the final improved prompt with no meta-commentary`;
       } else {
         systemPrompt = `You are a prompt engineer. Your job is to take a short user query and expand it into a detailed, effective prompt that will be sent to a knowledge base AI.
 
-The improved prompt you produce must follow this exact structure:
+The improved prompt you produce must follow this exact structure (output as plain text, NO markdown, NO headers, NO bold):
 
-1. PERSONA BLOCK (always start with this):
-"You are writing this response as an Ignite IT employee. Write in first-person voice using 'we', 'our', and 'Ignite IT'. Do NOT start with phrases like 'Based on the available information' or 'According to the documents'. Write confidently and directly as if you are the Ignite IT technical consultant presenting our company's technical capabilities and expertise."
+1. PERSONA BLOCK (always start with this exact text):
+You are writing this response as an Ignite IT employee. Write in first-person voice using 'we', 'our', and 'Ignite IT'. Do NOT start with phrases like 'Based on the available information' or 'According to the documents'. Write confidently and directly as if you are the Ignite IT technical consultant presenting our company's technical capabilities and expertise.
 
-2. DIRECTIVE (a single sentence stating what to provide, e.g. "Provide a comprehensive overview of Ignite IT's performance and contributions under [topic]." or "Describe Ignite IT's experience implementing [topic]. Address the following areas:")
+2. DIRECTIVE (a sentence or two describing what to provide, ending with "Address the following areas:")
 
-3. BULLET LIST (use the bullet character, 8-12 specific areas to address, each relevant to the user's query topic. Think about what a technical evaluator would want to see. Include items like):
-- Contract scope and duration, including role and responsibilities
-- Technical infrastructure and systems designed, implemented, or managed
-- Cloud architecture solutions (AWS, Azure, or on-premises) deployed
-- Security compliance frameworks (FedRAMP, FISMA, NIST SP 800)
-- DevSecOps practices and CI/CD pipelines established
-- Data management and analytics capabilities provided
-- Team composition, staffing levels, and key personnel
-- Performance metrics, uptime achievements, and SLA compliance
-- Challenges overcome and innovative solutions delivered
-- Customer satisfaction outcomes and agency feedback
-- Expansion of services or contract modifications
+3. BULLET LIST (use the \u2022 bullet character for each item, 8-12 specific areas to address, written in first-person "we/our" voice, each on its own line. Tailor these to the user's specific query topic. Think about what a technical evaluator would want to see.)
 
 4. CLOSING INSTRUCTION (a single sentence like "Present this as Ignite IT's direct technical experience and demonstrated capabilities in delivering [topic] solutions to federal customers.")
 
-Output ONLY the final improved prompt. Never include meta-commentary like "Here is the improved prompt" or "I've enhanced your query". Never include labels like "PERSONA BLOCK" or "DIRECTIVE" — just output the content directly.`;
+CRITICAL RULES:
+- Do NOT include any formatting directives in the output (no "Format your response with..." or "Use headings..." instructions)
+- Do NOT use markdown syntax (no ##, no **, no ---)
+- Do NOT include the labels "PERSONA BLOCK", "DIRECTIVE", etc. in the output
+- The output must be plain text only
+- Each bullet must start with \u2022 followed by a space
+- Output ONLY the final improved prompt with no meta-commentary`;
       }
 
       const response = await fetch(
