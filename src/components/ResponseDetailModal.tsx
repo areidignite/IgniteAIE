@@ -189,13 +189,9 @@ export function ResponseDetailModal({ doc, onClose }: ResponseDetailModalProps) 
           {/* Response content */}
           <div
             ref={contentRef}
-            className="text-slate-800 dark:text-slate-200 leading-relaxed select-text text-[0.9375rem]"
+            className="whitespace-pre-wrap text-slate-800 dark:text-slate-200 leading-relaxed select-text text-[0.9375rem]"
           >
-            {doc.content.split(/\n\n+/).map((paragraph, index) => (
-              <p key={index} className="mb-4 last:mb-0 whitespace-pre-wrap">
-                {paragraph}
-              </p>
-            ))}
+            {doc.content}
           </div>
         </div>
 

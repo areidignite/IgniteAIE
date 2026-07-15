@@ -517,47 +517,41 @@ function App() {
       let systemPrompt = '';
 
       if (companyVoice === 'ignite-action') {
-        systemPrompt = `You are a prompt engineer. Your job is to take a short user query and expand it into a detailed, effective prompt that will be sent to a knowledge base AI.
+        systemPrompt = `You are an IgniteAction proposal writer preparing a response for a federal Request for Information (RFI) or Request for Quotation (RFQ) related to the Census Bureau OCISS BPA.
 
-The improved prompt you produce must follow this exact structure (output as plain text, NO markdown, NO headers, NO bold):
+Transform the user's prompt by adding these specific instructions for the AI that will generate the response:
 
-1. PERSONA BLOCK (always start with this exact text):
-You are writing this response as an IgniteAction employee. Write in first-person voice using 'we', 'our', and 'IgniteAction'. Do NOT start with phrases like 'Based on the available information' or 'According to the documents'. Write confidently and directly as if you are the IgniteAction proposal writer presenting our company's capabilities and experience.
+"You are writing this response as an IgniteAction employee. Write in first-person voice using 'we', 'our', and 'IgniteAction'. Do NOT start with phrases like 'Based on the available information' or 'According to the documents'. Write confidently and directly as if you are the IgniteAction proposal writer presenting our company's capabilities and experience.
 
-2. DIRECTIVE (a sentence or two describing what to provide, ending with "Address the following areas:")
+Frame your response as an RFI/RFQ answer that:
+- Uses federal acquisition language (PWS, COR/COTR oversight, risk, schedule, performance metrics)
+- Highlights IgniteAction's program management methodology, governance structure, and proven Census/federal modernization experience
+- Demonstrates readiness, governance maturity, communication excellence, and risk management capabilities
+- Maintains a clear, professional, outcome-focused tone (no marketing fluff)
+- Targets 250-350 words unless otherwise specified
 
-3. BULLET LIST (use the \u2022 bullet character for each item, 8-12 specific areas to address, written in first-person "we/our" voice, each on its own line. Tailor these to the user's specific query topic. Think about what an evaluator would want to see in a proposal response.)
+Write as an IgniteAction representative presenting our solutions directly to the government customer."
 
-4. CLOSING INSTRUCTION (a single sentence like "Present this as IgniteAction's direct experience and demonstrated capabilities in delivering [topic] to federal customers.")
-
-CRITICAL RULES:
-- Do NOT include any formatting directives in the output (no "Format your response with..." or "Use headings..." instructions)
-- Do NOT use markdown syntax (no ##, no **, no ---)
-- Do NOT include the labels "PERSONA BLOCK", "DIRECTIVE", etc. in the output
-- The output must be plain text only
-- Each bullet must start with \u2022 followed by a space
-- Output ONLY the final improved prompt with no meta-commentary`;
+Return ONLY the improved prompt text that will be sent to the knowledge base, nothing else.`;
       } else {
-        systemPrompt = `You are a prompt engineer. Your job is to take a short user query and expand it into a detailed, effective prompt that will be sent to a knowledge base AI.
+        systemPrompt = `You are an Ignite IT technical consultant preparing responses for federal IT modernization projects.
 
-The improved prompt you produce must follow this exact structure (output as plain text, NO markdown, NO headers, NO bold):
+Transform the user's prompt by adding these specific instructions for the AI that will generate the response:
 
-1. PERSONA BLOCK (always start with this exact text):
-You are writing this response as an Ignite IT employee. Write in first-person voice using 'we', 'our', and 'Ignite IT'. Do NOT start with phrases like 'Based on the available information' or 'According to the documents'. Write confidently and directly as if you are the Ignite IT technical consultant presenting our company's technical capabilities and expertise.
+"You are writing this response as an Ignite IT employee. Write in first-person voice using 'we', 'our', and 'Ignite IT'. Do NOT start with phrases like 'Based on the available information' or 'According to the documents'. Write confidently and directly as if you are the Ignite IT technical consultant presenting our company's technical capabilities and expertise.
 
-2. DIRECTIVE (a sentence or two describing what to provide, ending with "Address the following areas:")
+Frame your response with:
+- Technical precision and IT infrastructure context
+- Emphasis on technology stack, architecture, security frameworks, and best practices
+- Alignment with federal IT standards (NIST, FedRAMP, FISMA, etc.)
+- Focus on technical implementation, scalability, and operational excellence
+- Detailed, technically accurate explanations
 
-3. BULLET LIST (use the \u2022 bullet character for each item, 8-12 specific areas to address, written in first-person "we/our" voice, each on its own line. Tailor these to the user's specific query topic. Think about what a technical evaluator would want to see.)
+Use Ignite IT's established tone: technical, precise, and infrastructure-focused, highlighting our expertise in cloud migration, cybersecurity, DevSecOps, and enterprise technology solutions.
 
-4. CLOSING INSTRUCTION (a single sentence like "Present this as Ignite IT's direct technical experience and demonstrated capabilities in delivering [topic] solutions to federal customers.")
+Write as an Ignite IT representative presenting our technical solutions directly to the customer."
 
-CRITICAL RULES:
-- Do NOT include any formatting directives in the output (no "Format your response with..." or "Use headings..." instructions)
-- Do NOT use markdown syntax (no ##, no **, no ---)
-- Do NOT include the labels "PERSONA BLOCK", "DIRECTIVE", etc. in the output
-- The output must be plain text only
-- Each bullet must start with \u2022 followed by a space
-- Output ONLY the final improved prompt with no meta-commentary`;
+Return ONLY the improved prompt text that will be sent to the knowledge base, nothing else.`;
       }
 
       const response = await fetch(
@@ -570,7 +564,7 @@ CRITICAL RULES:
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            query: `Improve this prompt: "${prompt}"`,
+            query: `Original prompt: "${prompt}"\n\nProvide an improved version of this prompt.`,
             modelArn: 'anthropic.claude-haiku-4-5-20251001-v1:0',
             useKnowledgeBase: false,
             generateTitle: false,
@@ -635,8 +629,6 @@ CRITICAL RULES:
       console.log('Selected model:', selectedModel);
       console.log('Selected model data:', selectedModelData);
 
-      const formattedQuery = prompt + '\n\nPlease format the response for the most effective presentation and reading, using bullets where appropriate and effective.';
-
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bedrock-llm`,
         {
@@ -647,7 +639,7 @@ CRITICAL RULES:
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            query: formattedQuery,
+            query: prompt,
             modelArn: selectedModel,
             inferenceProfileId: selectedModelData?.inferenceProfileId,
             inferenceProfileArn: selectedModelData?.inferenceProfileArn,

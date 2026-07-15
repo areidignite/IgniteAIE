@@ -230,7 +230,7 @@ export function DocumentViewer({ content, prompt, citations = [], usedKnowledgeB
         </div>
       )}
 
-      <div className="overflow-y-auto" style={{ maxHeight: '60vh' }}>
+      <div>
         <div className="prose prose-slate max-w-none">
           {editing ? (
             <textarea
@@ -249,15 +249,11 @@ export function DocumentViewer({ content, prompt, citations = [], usedKnowledgeB
               draggable
               onDragStart={(e) => handleDragStart(e, content)}
               onDragEnd={handleDragEnd}
-              className={`text-slate-800 dark:text-slate-200 leading-relaxed cursor-move select-text ${
+              className={`whitespace-pre-wrap text-slate-800 dark:text-slate-200 leading-relaxed cursor-move select-text ${
                 dragging ? 'opacity-50' : ''
               } hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded p-2 transition-colors`}
             >
-              {content.split(/\n\n+/).map((paragraph, index) => (
-                <p key={index} className="mb-4 last:mb-0 whitespace-pre-wrap">
-                  {paragraph}
-                </p>
-              ))}
+              {content}
             </div>
           )}
         </div>
