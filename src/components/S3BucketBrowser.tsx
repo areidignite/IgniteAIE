@@ -244,41 +244,27 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
         try {
           const key = currentPath ? `${currentPath}/${file.name}` : file.name;
 
-          const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-upload-url`;
+          const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/proxy-s3-upload`;
+
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('key', key);
+          formData.append('contentType', file.type || 'application/octet-stream');
+          if (selectedKnowledgeBase) formData.append('knowledgeBaseId', selectedKnowledgeBase);
+          formData.append('skipPrefix', 'true');
 
           const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,
               'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-              'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-              key,
-              contentType: file.type || 'application/octet-stream',
-              knowledgeBaseId: selectedKnowledgeBase,
-              skipPrefix: true,
-            }),
+            body: formData,
           });
 
           if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || error.message || 'Failed to generate upload URL');
-          }
-
-          const data = await response.json();
-
-          const uploadResponse = await fetch(data.url, {
-            method: 'PUT',
-            body: file,
-            headers: {
-              'Content-Type': file.type || 'application/octet-stream',
-            },
-          });
-
-          if (!uploadResponse.ok) {
-            const errorText = await uploadResponse.text();
-            throw new Error(`Failed to upload file to S3: ${uploadResponse.status} ${errorText}`);
+            throw new Error(error.error || error.message || 'Failed to upload file');
           }
 
           successCount++;
@@ -438,40 +424,26 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
         ? `${currentPath}/${trimmed}/.folder`
         : `${trimmed}/.folder`;
 
-      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-upload-url`;
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/proxy-s3-upload`;
+
+      const formData = new FormData();
+      formData.append('key', folderKey);
+      formData.append('contentType', 'application/x-directory');
+      if (selectedKnowledgeBase) formData.append('knowledgeBaseId', selectedKnowledgeBase);
+      formData.append('skipPrefix', 'true');
 
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          key: folderKey,
-          contentType: 'application/x-directory',
-          knowledgeBaseId: selectedKnowledgeBase,
-          skipPrefix: true,
-        }),
+        body: formData,
       });
 
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || error.message || 'Failed to create folder');
-      }
-
-      const data = await response.json();
-
-      const uploadResponse = await fetch(data.url, {
-        method: 'PUT',
-        body: new Blob([], { type: 'application/x-directory' }),
-        headers: {
-          'Content-Type': 'application/x-directory',
-        },
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error('Failed to create folder in S3');
       }
 
       setNewFolderName('');
