@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
+    "@tailwindcss/typography": "^0.5.20",
     "@tiptap/extension-color": "^3.22.1",
     "@tiptap/extension-highlight": "^3.22.1",
     "@tiptap/extension-placeholder": "^3.22.1",
@@ -25,7 +26,9 @@
     "html2pdf.js": "^0.14.0",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",

@@ -344,7 +344,7 @@ export function DocumentList({ documents, selectedId, onSelect, onDelete, onView
                     <FileText className="w-4 h-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
                     <h3 className="font-medium text-slate-800 dark:text-slate-100 truncate">{doc.title}</h3>
                   </div>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2">{doc.content}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2">{doc.content.replace(/#{1,6}\s?/g, '').replace(/\*{1,2}([^*]+)\*{1,2}/g, '$1').replace(/\|/g, ' ').replace(/[-]{3,}/g, '')}</p>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <p className="text-xs text-slate-400 dark:text-slate-500">{formatDate(doc.created_at)}</p>
                     {doc.used_knowledge_base !== undefined && (

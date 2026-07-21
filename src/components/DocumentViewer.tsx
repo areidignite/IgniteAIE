@@ -1,5 +1,7 @@
 import { FileText, Copy, Check, Link2, ExternalLink, ChevronUp, ChevronDown, Pencil, Save, X } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { getValidSession } from '../lib/supabase';
 
 interface DocumentViewerProps {
@@ -249,11 +251,21 @@ export function DocumentViewer({ content, prompt, citations = [], usedKnowledgeB
               draggable
               onDragStart={(e) => handleDragStart(e, content)}
               onDragEnd={handleDragEnd}
-              className={`whitespace-pre-wrap text-slate-800 dark:text-slate-200 leading-relaxed cursor-move select-text ${
+              className={`prose prose-sm dark:prose-invert max-w-none cursor-move select-text ${
                 dragging ? 'opacity-50' : ''
-              } hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded p-2 transition-colors`}
+              } hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded p-2 transition-colors
+                prose-headings:font-semibold prose-headings:text-slate-900 dark:prose-headings:text-slate-100
+                prose-h2:text-lg prose-h2:mt-6 prose-h2:mb-3 prose-h2:pb-1 prose-h2:border-b prose-h2:border-slate-200 dark:prose-h2:border-slate-700
+                prose-h3:text-base prose-h3:mt-4 prose-h3:mb-2
+                prose-h4:text-sm prose-h4:mt-3 prose-h4:mb-1
+                prose-p:text-slate-700 dark:prose-p:text-slate-300 prose-p:my-2
+                prose-strong:text-slate-900 dark:prose-strong:text-slate-100
+                prose-ul:my-2 prose-li:my-0.5
+                prose-table:text-sm prose-th:bg-slate-100 dark:prose-th:bg-slate-700 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:font-semibold prose-th:text-slate-800 dark:prose-th:text-slate-200
+                prose-td:px-3 prose-td:py-2 prose-td:border-t prose-td:border-slate-200 dark:prose-td:border-slate-700 prose-td:text-slate-700 dark:prose-td:text-slate-300
+              `}
             >
-              {content}
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
             </div>
           )}
         </div>

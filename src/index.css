@@ -12,6 +12,49 @@
   }
 }
 
+/* Markdown prose table styling */
+.prose table {
+  @apply w-full border-collapse border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden;
+}
+
+.prose thead {
+  @apply bg-slate-100 dark:bg-slate-700/50;
+}
+
+.prose th {
+  @apply border border-slate-200 dark:border-slate-700 px-3 py-2 text-left font-semibold text-sm;
+}
+
+.prose td {
+  @apply border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm;
+}
+
+.prose tr:nth-child(even) {
+  @apply bg-slate-50 dark:bg-slate-800/30;
+}
+
+/* Ensure markdown content doesn't overflow */
+.prose {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.prose pre {
+  @apply bg-slate-100 dark:bg-slate-800 rounded-md p-3 overflow-x-auto text-sm;
+}
+
+.prose code {
+  @apply bg-slate-100 dark:bg-slate-800 rounded px-1.5 py-0.5 text-sm font-mono;
+}
+
+.prose blockquote {
+  @apply border-l-4 border-slate-300 dark:border-slate-600 pl-4 italic text-slate-600 dark:text-slate-400;
+}
+
+.prose hr {
+  @apply border-slate-200 dark:border-slate-700 my-4;
+}
+
 .tiptap {
   outline: none;
 }

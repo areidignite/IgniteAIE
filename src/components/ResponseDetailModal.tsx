@@ -1,5 +1,7 @@
 import { X, Copy, Check, FileText, MessageSquareText, ChevronUp, ChevronDown } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import type { Document } from '../lib/supabase';
 
 interface ResponseDetailModalProps {
@@ -189,9 +191,19 @@ export function ResponseDetailModal({ doc, onClose }: ResponseDetailModalProps) 
           {/* Response content */}
           <div
             ref={contentRef}
-            className="whitespace-pre-wrap text-slate-800 dark:text-slate-200 leading-relaxed select-text text-[0.9375rem]"
+            className="prose prose-sm dark:prose-invert max-w-none select-text
+              prose-headings:font-semibold prose-headings:text-slate-900 dark:prose-headings:text-slate-100
+              prose-h2:text-lg prose-h2:mt-6 prose-h2:mb-3 prose-h2:pb-1 prose-h2:border-b prose-h2:border-slate-200 dark:prose-h2:border-slate-700
+              prose-h3:text-base prose-h3:mt-4 prose-h3:mb-2
+              prose-h4:text-sm prose-h4:mt-3 prose-h4:mb-1
+              prose-p:text-slate-700 dark:prose-p:text-slate-300 prose-p:my-2
+              prose-strong:text-slate-900 dark:prose-strong:text-slate-100
+              prose-ul:my-2 prose-li:my-0.5
+              prose-table:text-sm prose-th:bg-slate-100 dark:prose-th:bg-slate-700 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:font-semibold prose-th:text-slate-800 dark:prose-th:text-slate-200
+              prose-td:px-3 prose-td:py-2 prose-td:border-t prose-td:border-slate-200 dark:prose-td:border-slate-700 prose-td:text-slate-700 dark:prose-td:text-slate-300
+            "
           >
-            {doc.content}
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{doc.content}</ReactMarkdown>
           </div>
         </div>
 
