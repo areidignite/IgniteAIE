@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FileText, LogOut, Info, Trash2, Sun, Moon } from 'lucide-react';
+import { FileText, Info, Trash2, Sun, Moon } from 'lucide-react';
 import { supabase, getValidSession, type Document } from './lib/supabase';
 import { AuthForm } from './components/AuthForm';
 import { UpdatePasswordForm } from './components/UpdatePasswordForm';
@@ -14,6 +14,7 @@ import { ResizablePanel } from './components/ResizablePanel';
 import { ResizablePanelHorizontal } from './components/ResizablePanelHorizontal';
 import { S3BucketBrowser } from './components/S3BucketBrowser';
 import { ResponseDetailModal } from './components/ResponseDetailModal';
+import { UserProfileMenu } from './components/UserProfileMenu';
 import { PromptTemplateManager } from './components/PromptTemplateManager';
 import { useTheme } from './hooks/useTheme';
 import { useAutoSaveWorkspace } from './hooks/useAutoSaveWorkspace';
@@ -85,6 +86,7 @@ function App() {
   const { theme, toggleTheme } = useTheme();
   const [user, setUser] = useState<any>(null);
   const [session, setSession] = useState<any>(null);
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [improvingPrompt, setImprovingPrompt] = useState(false);
@@ -828,9 +830,13 @@ Return ONLY the improved prompt text, nothing else.`;
               isLoading={loadingModels}
               isValidating={validatingModels}
               validationResult={validationResult}
-              onSignOut={handleSignOut}
             />
           </div>
+          <UserProfileMenu
+            email={user?.email || ''}
+            onChangePassword={() => setShowChangePassword(true)}
+            onSignOut={handleSignOut}
+          />
         </div>
       </header>
 
@@ -960,6 +966,33 @@ Return ONLY the improved prompt text, nothing else.`;
       </main>
 
       {error && <ErrorDialog error={error} onClose={() => setError(null)} />}
+
+      {showChangePassword && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-md w-full">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Change Password</h2>
+              <button
+                onClick={() => setShowChangePassword(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-6">
+              <UpdatePasswordForm
+                onUpdatePassword={async (newPassword: string) => {
+                  const { error } = await supabase.auth.updateUser({ password: newPassword });
+                  if (error) throw error;
+                  setShowChangePassword(false);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {showTemplateManager && (
         <PromptTemplateManager

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { RefreshCw, LogOut, ShieldCheck, Loader2 } from 'lucide-react';
+import { RefreshCw, ShieldCheck, Loader2 } from 'lucide-react';
 
 interface FoundationModel {
   modelArn: string;
@@ -22,10 +22,9 @@ interface ModelSelectorProps {
   isLoading: boolean;
   isValidating: boolean;
   validationResult?: { accessible: number; denied: number } | null;
-  onSignOut?: () => void;
 }
 
-export function ModelSelector({ selectedModel, onModelChange, onRefresh, onValidate, models, isLoading, isValidating, validationResult, onSignOut }: ModelSelectorProps) {
+export function ModelSelector({ selectedModel, onModelChange, onRefresh, onValidate, models, isLoading, isValidating, validationResult }: ModelSelectorProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = async () => {
@@ -86,16 +85,7 @@ export function ModelSelector({ selectedModel, onModelChange, onRefresh, onValid
         >
           <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
         </button>
-        {onSignOut && (
-          <button
-            onClick={onSignOut}
-            className="flex items-center gap-2 px-4 py-2 text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-            title="Sign out"
-          >
-            <LogOut className="w-4 h-4" />
-            Sign Out
-          </button>
-        )}
+
       </div>
       {isValidating && (
         <p className="text-xs text-amber-600 dark:text-amber-400 animate-pulse">
