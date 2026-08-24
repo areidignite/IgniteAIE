@@ -1,7 +1,8 @@
-import { FolderOpen, FolderPlus, File, Download, RefreshCw, Upload, Trash2, RefreshCcw, X, Copy, ChevronRight, Home, Check } from 'lucide-react';
+import { FolderOpen, FolderPlus, File, Download, RefreshCw, Upload, Trash2, RefreshCcw, X, Copy, ChevronRight, Home, Check, HardDrive } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { supabase, getValidSession } from '../lib/supabase';
 import { RepositoryBrowser } from './RepositoryBrowser';
+import { GoogleDriveBrowser } from './GoogleDriveBrowser';
 
 interface S3Object {
   Key: string;
@@ -36,6 +37,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
   const [syncing, setSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string>('');
   const [showRepositoryBrowser, setShowRepositoryBrowser] = useState(false);
+  const [showGoogleDriveBrowser, setShowGoogleDriveBrowser] = useState(false);
   const [currentPath, setCurrentPath] = useState<string>('');
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -634,10 +636,19 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
             onClick={() => setShowRepositoryBrowser(true)}
             disabled={!selectedKnowledgeBase}
             className="px-4 py-2 bg-violet-600 dark:bg-violet-500 text-white rounded-lg hover:bg-violet-700 dark:hover:bg-violet-600 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
-            title={!selectedKnowledgeBase ? 'Select a knowledge base first' : 'Copy files from repository'}
+            title={!selectedKnowledgeBase ? 'Select a knowledge base first' : 'Copy files from S3 repository'}
           >
             <Copy className="w-4 h-4" />
-            Copy from Repository
+            Copy from S3 Repository
+          </button>
+          <button
+            onClick={() => setShowGoogleDriveBrowser(true)}
+            disabled={!selectedKnowledgeBase}
+            className="px-4 py-2 bg-teal-600 dark:bg-teal-500 text-white rounded-lg hover:bg-teal-700 dark:hover:bg-teal-600 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
+            title={!selectedKnowledgeBase ? 'Select a knowledge base first' : 'Copy files from Google Drive'}
+          >
+            <HardDrive className="w-4 h-4" />
+            Copy from Google Drive
           </button>
           <div className="flex items-center gap-2">
             <button
@@ -859,6 +870,17 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
           selectedKnowledgeBase={selectedKnowledgeBase}
           onClose={() => {
             setShowRepositoryBrowser(false);
+            fetchObjects(true);
+          }}
+        />
+      )}
+
+      {showGoogleDriveBrowser && (
+        <GoogleDriveBrowser
+          onError={onError}
+          selectedKnowledgeBase={selectedKnowledgeBase}
+          onClose={() => {
+            setShowGoogleDriveBrowser(false);
             fetchObjects(true);
           }}
         />
