@@ -5,73 +5,8 @@ import { signRequest } from "./aws-signer.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, X-Google-Access-Token",
 };
-
-interface ServiceAccountKey {
-  client_email: string;
-  private_key: string;
-  token_uri: string;
-}
-
-async function getAccessToken(serviceAccount: ServiceAccountKey): Promise<string> {
-  const now = Math.floor(Date.now() / 1000);
-  const header = { alg: "RS256", typ: "JWT" };
-  const payload = {
-    iss: serviceAccount.client_email,
-    scope: "https://www.googleapis.com/auth/drive.readonly",
-    aud: serviceAccount.token_uri,
-    iat: now,
-    exp: now + 3600,
-  };
-
-  const encoder = new TextEncoder();
-  const headerB64 = btoa(JSON.stringify(header)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
-  const payloadB64 = btoa(JSON.stringify(payload)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
-  const unsignedToken = `${headerB64}.${payloadB64}`;
-
-  const pemContent = serviceAccount.private_key
-    .replace(/-----BEGIN PRIVATE KEY-----/g, "")
-    .replace(/-----END PRIVATE KEY-----/g, "")
-    .replace(/\n/g, "");
-
-  const binaryKey = Uint8Array.from(atob(pemContent), (c) => c.charCodeAt(0));
-
-  const cryptoKey = await crypto.subtle.importKey(
-    "pkcs8",
-    binaryKey,
-    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-
-  const signature = await crypto.subtle.sign(
-    "RSASSA-PKCS1-v1_5",
-    cryptoKey,
-    encoder.encode(unsignedToken)
-  );
-
-  const signatureB64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
-    .replace(/=/g, "")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_");
-
-  const jwt = `${unsignedToken}.${signatureB64}`;
-
-  const tokenResponse = await fetch(serviceAccount.token_uri, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
-  });
-
-  if (!tokenResponse.ok) {
-    const errorText = await tokenResponse.text();
-    throw new Error(`Failed to get access token: ${errorText}`);
-  }
-
-  const tokenData = await tokenResponse.json();
-  return tokenData.access_token;
-}
 
 async function getGoogleDriveFileContent(
   fileId: string,
@@ -125,7 +60,7 @@ async function getGoogleDriveFileContent(
 }
 
 function getFileExtension(mimeType: string, originalName: string): string {
-  const hasExtension = originalName.includes('.') && originalName.lastIndexOf('.') > 0;
+  const hasExtension = originalName.includes(".") && originalName.lastIndexOf(".") > 0;
   if (hasExtension) return "";
 
   switch (mimeType) {
@@ -146,6 +81,14 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    const googleAccessToken = req.headers.get("X-Google-Access-Token");
+    if (!googleAccessToken) {
+      return new Response(
+        JSON.stringify({ error: "Google access token is required. Please sign in with Google." }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { fileIds, fileNames, fileMimeTypes, knowledgeBaseId } = await req.json();
 
     if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
@@ -162,14 +105,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const serviceAccountJson = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_JSON");
-    if (!serviceAccountJson) {
-      return new Response(
-        JSON.stringify({ error: "Google service account not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const awsAccessKeyId = Deno.env.get("AWS_ACCESS_KEY_ID")?.trim();
     const awsSecretAccessKey = Deno.env.get("AWS_SECRET_ACCESS_KEY")?.trim();
     const awsRegion = (Deno.env.get("AWS_REGION") || "us-east-1").trim();
@@ -180,9 +115,6 @@ Deno.serve(async (req: Request) => {
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const serviceAccount: ServiceAccountKey = JSON.parse(serviceAccountJson);
-    const accessToken = await getAccessToken(serviceAccount);
 
     // Get the destination bucket from knowledge base
     const dsEndpoint = `https://bedrock-agent.${awsRegion}.amazonaws.com/knowledgebases/${knowledgeBaseId}/datasources/`;
@@ -307,7 +239,7 @@ Deno.serve(async (req: Request) => {
         const extension = getFileExtension(mimeType, fileName);
         const finalFileName = fileName + extension;
 
-        const { content, exportedMimeType } = await getGoogleDriveFileContent(fileId, mimeType, accessToken);
+        const { content, exportedMimeType } = await getGoogleDriveFileContent(fileId, mimeType, googleAccessToken);
         const destinationKey = destinationPrefix + finalFileName;
 
         const putCommand = new PutObjectCommand({
