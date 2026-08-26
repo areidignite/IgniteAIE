@@ -45,19 +45,50 @@ export function GoogleDriveBrowser({ onError, selectedKnowledgeBase, onClose }: 
 
   const currentFolderId = folderStack[folderStack.length - 1].id;
 
-  const initializeGoogleAuth = useCallback(() => {
-    if (!window.google) {
-      onError('Google sign-in is still loading. Please try again in a moment.');
-      return;
-    }
+  const loadGoogleScript = (): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if (window.google?.accounts?.oauth2) {
+        resolve();
+        return;
+      }
 
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '171272055424-qsi38k0n3umgm8vbki87hqnmh3um2iec.apps.googleusercontent.com';
-    if (!clientId) {
-      onError('Google Client ID is not configured.');
-      return;
-    }
+      const existing = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+      if (existing) {
+        existing.addEventListener('load', () => resolve());
+        if (window.google?.accounts?.oauth2) resolve();
+        else setTimeout(() => {
+          if (window.google?.accounts?.oauth2) resolve();
+          else reject(new Error('Google script loaded but API not available'));
+        }, 3000);
+        return;
+      }
 
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.onload = () => {
+        setTimeout(() => {
+          if (window.google?.accounts?.oauth2) resolve();
+          else reject(new Error('Google script loaded but API not available'));
+        }, 100);
+      };
+      script.onerror = () => reject(new Error('Failed to load Google sign-in script'));
+      document.head.appendChild(script);
+    });
+  };
+
+  const initializeGoogleAuth = useCallback(async () => {
     setAuthenticating(true);
+
+    try {
+      await loadGoogleScript();
+    } catch (err) {
+      setAuthenticating(false);
+      onError(err instanceof Error ? err.message : 'Failed to load Google sign-in.');
+      return;
+    }
+
+    const clientId = '171272055424-qsi38k0n3umgm8vbki87hqnmh3um2iec.apps.googleusercontent.com';
 
     const tokenClient = window.google.accounts.oauth2.initTokenClient({
       client_id: clientId,
