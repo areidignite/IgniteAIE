@@ -51,7 +51,7 @@ export function GoogleDriveBrowser({ onError, selectedKnowledgeBase, onClose }: 
       return;
     }
 
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '171272055424-qsi38k0n3umgm8vbki87hqnmh3um2iec.apps.googleusercontent.com';
     if (!clientId) {
       onError('Google Client ID is not configured.');
       return;
