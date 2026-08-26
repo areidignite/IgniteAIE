@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { File, FolderOpen, Loader2, CheckSquare, Square, Copy, ChevronRight, Home, X, LogIn } from 'lucide-react';
 import { getValidSession } from '../lib/supabase';
 
@@ -16,22 +16,6 @@ interface GoogleDriveBrowserProps {
   onClose: () => void;
 }
 
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        oauth2: {
-          initTokenClient: (config: {
-            client_id: string;
-            scope: string;
-            callback: (response: { access_token?: string; error?: string }) => void;
-          }) => { requestAccessToken: () => void };
-        };
-      };
-    };
-  }
-}
-
 export function GoogleDriveBrowser({ onError, selectedKnowledgeBase, onClose }: GoogleDriveBrowserProps) {
   const [googleToken, setGoogleToken] = useState<string | null>(null);
   const [files, setFiles] = useState<DriveFile[]>([]);
@@ -41,72 +25,70 @@ export function GoogleDriveBrowser({ onError, selectedKnowledgeBase, onClose }: 
   const [copying, setCopying] = useState(false);
   const [folderStack, setFolderStack] = useState<{ id: string; name: string }[]>([{ id: 'root', name: 'My Drive' }]);
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
-  const tokenClientRef = useRef<{ requestAccessToken: () => void } | null>(null);
 
   const currentFolderId = folderStack[folderStack.length - 1].id;
-
-  const loadGoogleScript = (): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      if (window.google?.accounts?.oauth2) {
-        resolve();
-        return;
-      }
-
-      const existing = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
-      if (existing) {
-        existing.addEventListener('load', () => resolve());
-        if (window.google?.accounts?.oauth2) resolve();
-        else setTimeout(() => {
-          if (window.google?.accounts?.oauth2) resolve();
-          else reject(new Error('Google script loaded but API not available'));
-        }, 3000);
-        return;
-      }
-
-      const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.onload = () => {
-        setTimeout(() => {
-          if (window.google?.accounts?.oauth2) resolve();
-          else reject(new Error('Google script loaded but API not available'));
-        }, 100);
-      };
-      script.onerror = () => reject(new Error('Failed to load Google sign-in script'));
-      document.head.appendChild(script);
-    });
-  };
 
   const initializeGoogleAuth = useCallback(async () => {
     setAuthenticating(true);
 
-    try {
-      await loadGoogleScript();
-    } catch (err) {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '171272055424-u187diinke57cg8rqp989qeagh2p4hn7.apps.googleusercontent.com';
+    const redirectUri = window.location.origin;
+    const scope = 'https://www.googleapis.com/auth/drive.readonly';
+
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+      `client_id=${encodeURIComponent(clientId)}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&response_type=token` +
+      `&scope=${encodeURIComponent(scope)}` +
+      `&prompt=select_account` +
+      `&include_granted_scopes=true`;
+
+    const width = 500;
+    const height = 600;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+
+    const popup = window.open(
+      authUrl,
+      'google_auth',
+      `width=${width},height=${height},left=${left},top=${top},popup=yes`
+    );
+
+    if (!popup || popup.closed) {
       setAuthenticating(false);
-      onError(err instanceof Error ? err.message : 'Failed to load Google sign-in.');
+      onError('The sign-in popup was blocked by your browser. Please allow popups for this site and try again, or open the app in a new browser tab.');
       return;
     }
 
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '171272055424-u187diinke57cg8rqp989qeagh2p4hn7.apps.googleusercontent.com';
-
-    const tokenClient = window.google.accounts.oauth2.initTokenClient({
-      client_id: clientId,
-      scope: 'https://www.googleapis.com/auth/drive.readonly',
-      callback: (response) => {
-        setAuthenticating(false);
-        if (response.error) {
-          onError(`Google sign-in failed: ${response.error}`);
+    const pollInterval = setInterval(() => {
+      try {
+        if (popup.closed) {
+          clearInterval(pollInterval);
+          setAuthenticating(false);
           return;
         }
-        if (response.access_token) {
-          setGoogleToken(response.access_token);
-        }
-      },
-    });
+        const popupUrl = popup.location.href;
+        if (popupUrl.startsWith(redirectUri)) {
+          const hash = popup.location.hash.substring(1);
+          const params = new URLSearchParams(hash);
+          const accessToken = params.get('access_token');
+          const error = params.get('error');
+          popup.close();
+          clearInterval(pollInterval);
+          setAuthenticating(false);
 
-    tokenClientRef.current = tokenClient;
-    tokenClient.requestAccessToken();
+          if (error) {
+            onError(`Google sign-in failed: ${error}`);
+            return;
+          }
+          if (accessToken) {
+            setGoogleToken(accessToken);
+          }
+        }
+      } catch {
+        // Cross-origin - popup still on Google's domain, keep polling
+      }
+    }, 500);
   }, [onError]);
 
   useEffect(() => {
