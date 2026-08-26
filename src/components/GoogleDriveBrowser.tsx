@@ -17,7 +17,9 @@ interface GoogleDriveBrowserProps {
 }
 
 export function GoogleDriveBrowser({ onError, selectedKnowledgeBase, onClose }: GoogleDriveBrowserProps) {
-  const [googleToken, setGoogleToken] = useState<string | null>(null);
+  const [googleToken, setGoogleToken] = useState<string | null>(() => {
+    return sessionStorage.getItem('google_drive_token');
+  });
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [authenticating, setAuthenticating] = useState(false);
@@ -28,12 +30,17 @@ export function GoogleDriveBrowser({ onError, selectedKnowledgeBase, onClose }: 
 
   const currentFolderId = folderStack[folderStack.length - 1].id;
 
-  const initializeGoogleAuth = useCallback(async () => {
+  const initializeGoogleAuth = useCallback(() => {
     setAuthenticating(true);
 
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '171272055424-u187diinke57cg8rqp989qeagh2p4hn7.apps.googleusercontent.com';
-    const redirectUri = window.location.origin;
+    const redirectUri = window.location.origin + window.location.pathname;
     const scope = 'https://www.googleapis.com/auth/drive.readonly';
+
+    sessionStorage.setItem('google_drive_pending', 'true');
+    if (selectedKnowledgeBase) {
+      sessionStorage.setItem('google_drive_kb', selectedKnowledgeBase);
+    }
 
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${encodeURIComponent(clientId)}` +
@@ -43,53 +50,8 @@ export function GoogleDriveBrowser({ onError, selectedKnowledgeBase, onClose }: 
       `&prompt=select_account` +
       `&include_granted_scopes=true`;
 
-    const width = 500;
-    const height = 600;
-    const left = window.screenX + (window.outerWidth - width) / 2;
-    const top = window.screenY + (window.outerHeight - height) / 2;
-
-    const popup = window.open(
-      authUrl,
-      'google_auth',
-      `width=${width},height=${height},left=${left},top=${top},popup=yes`
-    );
-
-    if (!popup || popup.closed) {
-      setAuthenticating(false);
-      onError('The sign-in popup was blocked by your browser. Please allow popups for this site and try again, or open the app in a new browser tab.');
-      return;
-    }
-
-    const pollInterval = setInterval(() => {
-      try {
-        if (popup.closed) {
-          clearInterval(pollInterval);
-          setAuthenticating(false);
-          return;
-        }
-        const popupUrl = popup.location.href;
-        if (popupUrl.startsWith(redirectUri)) {
-          const hash = popup.location.hash.substring(1);
-          const params = new URLSearchParams(hash);
-          const accessToken = params.get('access_token');
-          const error = params.get('error');
-          popup.close();
-          clearInterval(pollInterval);
-          setAuthenticating(false);
-
-          if (error) {
-            onError(`Google sign-in failed: ${error}`);
-            return;
-          }
-          if (accessToken) {
-            setGoogleToken(accessToken);
-          }
-        }
-      } catch {
-        // Cross-origin - popup still on Google's domain, keep polling
-      }
-    }, 500);
-  }, [onError]);
+    window.location.href = authUrl;
+  }, [selectedKnowledgeBase]);
 
   useEffect(() => {
     if (googleToken) {

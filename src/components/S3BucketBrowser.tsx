@@ -94,6 +94,21 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
   };
 
   useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.includes('access_token')) {
+      const params = new URLSearchParams(hash.substring(1));
+      const token = params.get('access_token');
+      if (token) {
+        sessionStorage.setItem('google_drive_token', token);
+        window.history.replaceState(null, '', window.location.pathname);
+        setShowGoogleDriveBrowser(true);
+      }
+    } else if (sessionStorage.getItem('google_drive_pending')) {
+      sessionStorage.removeItem('google_drive_pending');
+    }
+  }, []);
+
+  useEffect(() => {
     if (selectedKnowledgeBase) {
       fetchObjects(true);
     } else {
@@ -881,6 +896,9 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
           selectedKnowledgeBase={selectedKnowledgeBase}
           onClose={() => {
             setShowGoogleDriveBrowser(false);
+            sessionStorage.removeItem('google_drive_token');
+            sessionStorage.removeItem('google_drive_pending');
+            sessionStorage.removeItem('google_drive_kb');
             fetchObjects(true);
           }}
         />
