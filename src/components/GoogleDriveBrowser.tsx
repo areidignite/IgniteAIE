@@ -88,7 +88,7 @@ export function GoogleDriveBrowser({ onError, selectedKnowledgeBase, onClose }: 
       return;
     }
 
-    const clientId = '171272055424-qsi38k0n3umgm8vbki87hqnmh3um2iec.apps.googleusercontent.com';
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '171272055424-u187diinke57cg8rqp989qeagh2p4hn7.apps.googleusercontent.com';
 
     const tokenClient = window.google.accounts.oauth2.initTokenClient({
       client_id: clientId,
