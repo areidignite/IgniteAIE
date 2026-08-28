@@ -4,6 +4,17 @@ import App from './App.tsx';
 import './index.css';
 import { ThemeProvider } from './hooks/useTheme';
 
+// Handle Google OAuth redirect callback (runs in the new tab opened for sign-in)
+const hash = window.location.hash;
+if (hash.includes('access_token')) {
+  const params = new URLSearchParams(hash.substring(1));
+  const token = params.get('access_token');
+  if (token) {
+    localStorage.setItem('google_drive_token', token);
+    window.close();
+  }
+}
+
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error?: Error }> {
   constructor(props: { children: ReactNode }) {
     super(props);
