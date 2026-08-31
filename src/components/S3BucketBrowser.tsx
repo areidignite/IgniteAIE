@@ -881,7 +881,6 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
           selectedKnowledgeBase={selectedKnowledgeBase}
           onClose={() => {
             setShowGoogleDriveBrowser(false);
-            localStorage.removeItem('google_drive_token');
             fetchObjects(true);
           }}
         />

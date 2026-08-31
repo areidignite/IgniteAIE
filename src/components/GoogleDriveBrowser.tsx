@@ -2,8 +2,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { File, FolderOpen, Loader2, CheckSquare, Square, Copy, ChevronRight, Home, X, LogIn, ExternalLink } from 'lucide-react';
 import { getValidSession } from '../lib/supabase';
 
-const GOOGLE_TOKEN_KEY = 'google_drive_token';
-
 interface DriveFile {
   id: string;
   name: string;
@@ -19,9 +17,7 @@ interface GoogleDriveBrowserProps {
 }
 
 export function GoogleDriveBrowser({ onError, selectedKnowledgeBase, onClose }: GoogleDriveBrowserProps) {
-  const [googleToken, setGoogleToken] = useState<string | null>(() => {
-    return localStorage.getItem(GOOGLE_TOKEN_KEY);
-  });
+  const [googleToken, setGoogleToken] = useState<string | null>(null);
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [waitingForAuth, setWaitingForAuth] = useState(false);
@@ -32,9 +28,10 @@ export function GoogleDriveBrowser({ onError, selectedKnowledgeBase, onClose }: 
 
   const currentFolderId = folderStack[folderStack.length - 1].id;
 
+  const redirectUri = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-oauth-callback`;
+
   const authUrl = useMemo(() => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '171272055424-u187diinke57cg8rqp989qeagh2p4hn7.apps.googleusercontent.com';
-    const redirectUri = import.meta.env.VITE_GOOGLE_REDIRECT_URI || (window.location.origin + '/');
     const scope = 'https://www.googleapis.com/auth/drive.readonly';
     return `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${encodeURIComponent(clientId)}` +
@@ -43,19 +40,17 @@ export function GoogleDriveBrowser({ onError, selectedKnowledgeBase, onClose }: 
       `&scope=${encodeURIComponent(scope)}` +
       `&prompt=select_account` +
       `&include_granted_scopes=true`;
-  }, []);
-
-  const detectedRedirectUri = import.meta.env.VITE_GOOGLE_REDIRECT_URI || (window.location.origin + '/');
+  }, [redirectUri]);
 
   useEffect(() => {
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === GOOGLE_TOKEN_KEY && e.newValue) {
-        setGoogleToken(e.newValue);
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'google_drive_token' && e.data.token) {
+        setGoogleToken(e.data.token);
         setWaitingForAuth(false);
       }
     };
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
   }, []);
 
   useEffect(() => {
@@ -293,10 +288,10 @@ export function GoogleDriveBrowser({ onError, selectedKnowledgeBase, onClose }: 
               </p>
               <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-3 mb-6 max-w-lg w-full">
                 <p className="text-xs text-slate-500 dark:text-slate-400 mb-1 font-medium">
-                  Redirect URI (must be added to Google Cloud Console):
+                  Redirect URI (add this to Google Cloud Console):
                 </p>
                 <code className="text-xs text-slate-700 dark:text-slate-300 break-all select-all">
-                  {detectedRedirectUri}
+                  {redirectUri}
                 </code>
               </div>
               {waitingForAuth ? (
@@ -315,7 +310,7 @@ export function GoogleDriveBrowser({ onError, selectedKnowledgeBase, onClose }: 
                 <a
                   href={authUrl}
                   target="_blank"
-                  rel="noopener noreferrer"
+                  rel="noreferrer"
                   onClick={() => setWaitingForAuth(true)}
                   className="flex items-center gap-3 px-6 py-3 bg-white dark:bg-slate-700 border-2 border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors shadow-sm no-underline"
                 >

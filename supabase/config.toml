@@ -1,0 +1,65 @@
+[functions.send-reset-code]
+verify_jwt = false
+
+[functions.verify-reset-code]
+verify_jwt = false
+
+[functions.list-foundation-models]
+verify_jwt = false
+
+[functions.list-knowledge-bases]
+verify_jwt = false
+
+[functions.bedrock-llm]
+verify_jwt = true
+
+[functions.list-s3-objects]
+verify_jwt = false
+
+[functions.generated-presigned-url]
+verify_jwt = false
+
+[functions.generate-upload-url]
+verify_jwt = false
+
+[functions.delete-s3-object]
+verify_jwt = false
+
+[functions.check-ingestion-status]
+verify_jwt = false
+
+[functions.sync-knowledge-base]
+verify_jwt = false
+
+[functions.update-user-password]
+verify_jwt = false
+
+[functions.generate-presigned-url]
+verify_jwt = false
+
+[functions.copy-repository-files]
+verify_jwt = false
+
+[functions.list-repository-files]
+verify_jwt = false
+
+[functions.get-model-details]
+verify_jwt = false
+
+[functions.validate-models]
+verify_jwt = false
+
+[functions.format-for-docx]
+verify_jwt = true
+
+[functions.proxy-s3-upload]
+verify_jwt = true
+
+[functions.list-google-drive-files]
+verify_jwt = true
+
+[functions.copy-google-drive-files]
+verify_jwt = true
+
+[functions.google-oauth-callback]
+verify_jwt = false
