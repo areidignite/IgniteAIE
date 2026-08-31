@@ -38,9 +38,18 @@ Deno.serve((_req: Request) => {
         return;
       }
 
-      var params = new URLSearchParams(hash.substring(1));
-      var token = params.get('access_token');
-      var state = params.get('state');
+      var raw = hash.substring(1);
+      var token = null;
+      var state = null;
+      var parts = raw.split('&');
+      for (var i = 0; i < parts.length; i++) {
+        var eq = parts[i].indexOf('=');
+        if (eq === -1) continue;
+        var key = parts[i].substring(0, eq);
+        var val = parts[i].substring(eq + 1);
+        if (key === 'access_token') token = decodeURIComponent(val);
+        if (key === 'state') state = decodeURIComponent(val);
+      }
 
       if (!token) {
         statusEl.textContent = 'No token received. Please close this tab and try again.';
@@ -48,8 +57,7 @@ Deno.serve((_req: Request) => {
       }
 
       if (state) {
-        var origin = decodeURIComponent(state);
-        window.location.href = origin + '#google_drive_token=' + encodeURIComponent(token);
+        window.location.href = state + '#google_drive_token=' + encodeURIComponent(token);
       } else {
         statusEl.textContent = 'Signed in, but could not redirect back to the app. Please close this tab and try again.';
       }
