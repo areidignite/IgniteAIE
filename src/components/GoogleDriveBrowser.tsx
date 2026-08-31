@@ -17,7 +17,9 @@ interface GoogleDriveBrowserProps {
 }
 
 export function GoogleDriveBrowser({ onError, selectedKnowledgeBase, onClose }: GoogleDriveBrowserProps) {
-  const [googleToken, setGoogleToken] = useState<string | null>(null);
+  const [googleToken, setGoogleToken] = useState<string | null>(() => {
+    return localStorage.getItem('google_drive_token');
+  });
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [waitingForAuth, setWaitingForAuth] = useState(false);
@@ -33,24 +35,26 @@ export function GoogleDriveBrowser({ onError, selectedKnowledgeBase, onClose }: 
   const authUrl = useMemo(() => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '171272055424-u187diinke57cg8rqp989qeagh2p4hn7.apps.googleusercontent.com';
     const scope = 'https://www.googleapis.com/auth/drive.readonly';
+    const state = encodeURIComponent(window.location.origin);
     return `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${encodeURIComponent(clientId)}` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
       `&response_type=token` +
       `&scope=${encodeURIComponent(scope)}` +
+      `&state=${state}` +
       `&prompt=select_account` +
       `&include_granted_scopes=true`;
   }, [redirectUri]);
 
   useEffect(() => {
-    const handleMessage = (e: MessageEvent) => {
-      if (e.data?.type === 'google_drive_token' && e.data.token) {
-        setGoogleToken(e.data.token);
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'google_drive_token' && e.newValue) {
+        setGoogleToken(e.newValue);
         setWaitingForAuth(false);
       }
     };
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
   useEffect(() => {

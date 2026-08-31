@@ -4,6 +4,17 @@ import App from './App.tsx';
 import './index.css';
 import { ThemeProvider } from './hooks/useTheme';
 
+const hash = window.location.hash;
+if (hash.includes('google_drive_token=')) {
+  const params = new URLSearchParams(hash.substring(1));
+  const token = params.get('google_drive_token');
+  if (token) {
+    localStorage.setItem('google_drive_token', token);
+    window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    window.close();
+  }
+}
+
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error?: Error }> {
   constructor(props: { children: ReactNode }) {
     super(props);

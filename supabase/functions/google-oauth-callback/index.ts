@@ -30,8 +30,8 @@ Deno.serve((_req: Request) => {
   </div>
   <script>
     (function() {
-      var hash = window.location.hash;
       var statusEl = document.getElementById('status');
+      var hash = window.location.hash;
 
       if (!hash || hash.indexOf('access_token') === -1) {
         statusEl.textContent = 'Sign-in failed. Please close this tab and try again.';
@@ -40,18 +40,18 @@ Deno.serve((_req: Request) => {
 
       var params = new URLSearchParams(hash.substring(1));
       var token = params.get('access_token');
+      var state = params.get('state');
 
       if (!token) {
         statusEl.textContent = 'No token received. Please close this tab and try again.';
         return;
       }
 
-      if (window.opener) {
-        window.opener.postMessage({ type: 'google_drive_token', token: token }, '*');
-        statusEl.textContent = 'Signed in! This tab will close automatically.';
-        setTimeout(function() { window.close(); }, 500);
+      if (state) {
+        var origin = decodeURIComponent(state);
+        window.location.href = origin + '#google_drive_token=' + encodeURIComponent(token);
       } else {
-        statusEl.textContent = 'Signed in, but could not connect to the app. Please close this tab, reopen the Google Drive dialog, and try again.';
+        statusEl.textContent = 'Signed in, but could not redirect back to the app. Please close this tab and try again.';
       }
     })();
   </script>
