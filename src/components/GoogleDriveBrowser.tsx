@@ -34,7 +34,7 @@ export function GoogleDriveBrowser({ onError, selectedKnowledgeBase, onClose }: 
 
   const authUrl = useMemo(() => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '171272055424-u187diinke57cg8rqp989qeagh2p4hn7.apps.googleusercontent.com';
-    const redirectUri = window.location.origin + window.location.pathname;
+    const redirectUri = import.meta.env.VITE_GOOGLE_REDIRECT_URI || (window.location.origin + '/');
     const scope = 'https://www.googleapis.com/auth/drive.readonly';
     return `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${encodeURIComponent(clientId)}` +
@@ -44,6 +44,8 @@ export function GoogleDriveBrowser({ onError, selectedKnowledgeBase, onClose }: 
       `&prompt=select_account` +
       `&include_granted_scopes=true`;
   }, []);
+
+  const detectedRedirectUri = import.meta.env.VITE_GOOGLE_REDIRECT_URI || (window.location.origin + '/');
 
   useEffect(() => {
     const handleStorage = (e: StorageEvent) => {
@@ -285,10 +287,18 @@ export function GoogleDriveBrowser({ onError, selectedKnowledgeBase, onClose }: 
               <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">
                 Connect to Google Drive
               </h3>
-              <p className="text-sm text-slate-600 dark:text-slate-400 text-center max-w-md mb-6">
+              <p className="text-sm text-slate-600 dark:text-slate-400 text-center max-w-md mb-4">
                 Sign in with your Google account to browse and copy files from your Drive to the knowledge base.
                 A new tab will open for sign-in.
               </p>
+              <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-3 mb-6 max-w-lg w-full">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-1 font-medium">
+                  Redirect URI (must be added to Google Cloud Console):
+                </p>
+                <code className="text-xs text-slate-700 dark:text-slate-300 break-all select-all">
+                  {detectedRedirectUri}
+                </code>
+              </div>
               {waitingForAuth ? (
                 <div className="flex flex-col items-center gap-3">
                   <div className="flex items-center gap-3 px-6 py-3 bg-slate-50 dark:bg-slate-700 border-2 border-slate-200 dark:border-slate-600 rounded-lg">

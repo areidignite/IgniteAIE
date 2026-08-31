@@ -11,6 +11,8 @@ if (hash.includes('access_token')) {
   const token = params.get('access_token');
   if (token) {
     localStorage.setItem('google_drive_token', token);
+    document.title = 'Google Sign-in Complete';
+    document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui;color:#64748b"><p>Signed in! You can close this tab.</p></div>';
     window.close();
   }
 }
