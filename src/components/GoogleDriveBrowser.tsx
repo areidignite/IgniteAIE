@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { File, FolderOpen, Loader2, CheckSquare, Square, Copy, ChevronRight, Home, X, LogIn } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { File, FolderOpen, Loader2, CheckSquare, Square, Copy, ChevronRight, Home, X, LogIn, ExternalLink } from 'lucide-react';
 import { getValidSession } from '../lib/supabase';
 
 interface DriveFile {
@@ -21,56 +21,60 @@ export function GoogleDriveBrowser({ onError, selectedKnowledgeBase, onClose }: 
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [waitingForAuth, setWaitingForAuth] = useState(false);
-  const [gisReady, setGisReady] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Map<string, { name: string; mimeType: string }>>(new Map());
   const [copying, setCopying] = useState(false);
   const [folderStack, setFolderStack] = useState<{ id: string; name: string }[]>([{ id: 'root', name: 'My Drive' }]);
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
-  const tokenClientRef = useRef<TokenClient | null>(null);
+  const authWindowRef = useRef<Window | null>(null);
 
   const currentFolderId = folderStack[folderStack.length - 1].id;
 
-  const handleTokenResponse = useCallback((response: TokenResponse) => {
-    setWaitingForAuth(false);
-    if (response.error) {
-      onError(response.error_description || 'Google sign-in failed');
-      return;
-    }
-    setGoogleToken(response.access_token);
-  }, [onError]);
+  const redirectUri = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-oauth-callback`;
+
+  const authUrl = useMemo(() => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '171272055424-u187diinke57cg8rqp989qeagh2p4hn7.apps.googleusercontent.com';
+    const scope = 'https://www.googleapis.com/auth/drive.readonly';
+    return `https://accounts.google.com/o/oauth2/v2/auth?` +
+      `client_id=${encodeURIComponent(clientId)}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&response_type=token` +
+      `&scope=${encodeURIComponent(scope)}` +
+      `&prompt=select_account` +
+      `&include_granted_scopes=true`;
+  }, [redirectUri]);
 
   useEffect(() => {
-    const checkGis = () => {
-      if (typeof google !== 'undefined' && google.accounts?.oauth2) {
-        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '171272055424-u187diinke57cg8rqp989qeagh2p4hn7.apps.googleusercontent.com';
-        tokenClientRef.current = google.accounts.oauth2.initTokenClient({
-          client_id: clientId,
-          scope: 'https://www.googleapis.com/auth/drive.readonly',
-          callback: handleTokenResponse,
-          error_callback: (err) => {
-            setWaitingForAuth(false);
-            if (err.type !== 'popup_closed') {
-              onError(err.message || 'Google sign-in failed');
-            }
-          },
-        });
-        setGisReady(true);
-        return true;
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'google_drive_token' && e.data?.token) {
+        setGoogleToken(e.data.token);
+        setWaitingForAuth(false);
+        if (authWindowRef.current && !authWindowRef.current.closed) {
+          authWindowRef.current.close();
+        }
       }
-      return false;
     };
-    if (!checkGis()) {
-      const interval = setInterval(() => {
-        if (checkGis()) clearInterval(interval);
-      }, 200);
-      return () => clearInterval(interval);
-    }
-  }, [handleTokenResponse, onError]);
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  useEffect(() => {
+    if (!waitingForAuth) return;
+    const interval = setInterval(() => {
+      if (authWindowRef.current?.closed) {
+        setWaitingForAuth(false);
+        authWindowRef.current = null;
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [waitingForAuth]);
 
   const handleSignIn = () => {
-    if (!tokenClientRef.current) return;
     setWaitingForAuth(true);
-    tokenClientRef.current.requestAccessToken({ prompt: 'select_account' });
+    authWindowRef.current = window.open(authUrl, '_blank');
+    if (!authWindowRef.current) {
+      setWaitingForAuth(false);
+      onError('Could not open the sign-in window. Please allow popups for this site and try again.');
+    }
   };
 
   useEffect(() => {
@@ -302,9 +306,18 @@ export function GoogleDriveBrowser({ onError, selectedKnowledgeBase, onClose }: 
               <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">
                 Connect to Google Drive
               </h3>
-              <p className="text-sm text-slate-600 dark:text-slate-400 text-center max-w-md mb-6">
+              <p className="text-sm text-slate-600 dark:text-slate-400 text-center max-w-md mb-4">
                 Sign in with your Google account to browse and copy files from your Drive to the knowledge base.
+                A new tab will open for sign-in.
               </p>
+              <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-3 mb-6 max-w-lg w-full">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-1 font-medium">
+                  Redirect URI (add this to Google Cloud Console):
+                </p>
+                <code className="text-xs text-slate-700 dark:text-slate-300 break-all select-all">
+                  {redirectUri}
+                </code>
+              </div>
               {waitingForAuth ? (
                 <div className="flex flex-col items-center gap-3">
                   <div className="flex items-center gap-3 px-6 py-3 bg-slate-50 dark:bg-slate-700 border-2 border-slate-200 dark:border-slate-600 rounded-lg">
@@ -314,14 +327,13 @@ export function GoogleDriveBrowser({ onError, selectedKnowledgeBase, onClose }: 
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Complete sign-in in the popup window
+                    Complete sign-in in the new tab, then return here
                   </p>
                 </div>
               ) : (
                 <button
                   onClick={handleSignIn}
-                  disabled={!gisReady}
-                  className="flex items-center gap-3 px-6 py-3 bg-white dark:bg-slate-700 border-2 border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-3 px-6 py-3 bg-white dark:bg-slate-700 border-2 border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors shadow-sm"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -330,8 +342,9 @@ export function GoogleDriveBrowser({ onError, selectedKnowledgeBase, onClose }: 
                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                   </svg>
                   <span className="font-medium text-slate-700 dark:text-slate-200">
-                    {gisReady ? 'Sign in with Google' : 'Loading...'}
+                    Sign in with Google
                   </span>
+                  <ExternalLink className="w-4 h-4 text-slate-400" />
                 </button>
               )}
             </div>
