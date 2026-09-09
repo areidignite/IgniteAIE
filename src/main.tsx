@@ -4,6 +4,22 @@ import App from './App.tsx';
 import './index.css';
 import { ThemeProvider } from './hooks/useTheme';
 
+const hash = window.location.hash;
+if (hash.includes('google_drive_token=')) {
+  const parts = hash.substring(1).split('&');
+  for (const part of parts) {
+    const eq = part.indexOf('=');
+    if (eq < 0) continue;
+    const key = part.substring(0, eq);
+    const val = part.substring(eq + 1);
+    if (key === 'google_drive_token') {
+      sessionStorage.setItem('google_drive_token', decodeURIComponent(val));
+      break;
+    }
+  }
+  window.history.replaceState(null, '', window.location.pathname + window.location.search);
+}
+
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error?: Error }> {
   constructor(props: { children: ReactNode }) {
     super(props);
