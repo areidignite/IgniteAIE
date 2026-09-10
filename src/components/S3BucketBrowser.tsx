@@ -28,6 +28,7 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
 
   const [allObjects, setAllObjects] = useState<S3Object[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingAll, setLoadingAll] = useState(false);
   const [filterText, setFilterText] = useState('');
   const [continuationToken, setContinuationToken] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(false);
@@ -46,36 +47,36 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
   const folderInputRef = useRef<HTMLInputElement>(null);
   const statusCheckIntervalRef = useRef<number | null>(null);
 
+  const fetchPage = async (token: string | undefined, knowledgeBaseId: string, authToken: string) => {
+    const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-s3-objects`;
+    const params = new URLSearchParams();
+    if (token) params.append('continuationToken', token);
+    if (knowledgeBaseId) params.append('knowledgeBaseId', knowledgeBaseId);
+
+    const response = await fetch(`${apiUrl}?${params.toString()}`, {
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || error.error || 'Failed to fetch S3 objects');
+    }
+
+    return response.json();
+  };
+
   const fetchObjects = async (resetList = false) => {
     setLoading(true);
     try {
       const session = await getValidSession();
-      const token = session?.access_token;
+      const authToken = session?.access_token;
+      if (!authToken) throw new Error('No authentication token');
 
-      if (!token) {
-        throw new Error('No authentication token');
-      }
-
-      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-s3-objects`;
-      const params = new URLSearchParams();
-      if (!resetList && continuationToken) params.append('continuationToken', continuationToken);
-      if (selectedKnowledgeBase) params.append('knowledgeBaseId', selectedKnowledgeBase);
-
-      const response = await fetch(`${apiUrl}?${params.toString()}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        console.error('Full error response:', error);
-        throw new Error(error.message || error.error || 'Failed to fetch S3 objects');
-      }
-
-      const data = await response.json();
+      const data = await fetchPage(resetList ? undefined : continuationToken, selectedKnowledgeBase, authToken);
 
       if (resetList) {
         setAllObjects(data.Contents || []);
@@ -90,6 +91,42 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
       onError(error instanceof Error ? error.message : 'Failed to fetch S3 objects');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAllObjects = async () => {
+    setLoadingAll(true);
+    setLoading(true);
+    try {
+      const session = await getValidSession();
+      const authToken = session?.access_token;
+      if (!authToken) throw new Error('No authentication token');
+
+      let allContents: S3Object[] = [];
+      let nextToken: string | undefined = undefined;
+      let firstPage = true;
+
+      do {
+        const data = await fetchPage(nextToken, selectedKnowledgeBase, authToken);
+        allContents = [...allContents, ...(data.Contents || [])];
+        nextToken = data.NextContinuationToken;
+        if (firstPage) {
+          setAllObjects(allContents);
+          firstPage = false;
+        } else {
+          setAllObjects([...allContents]);
+        }
+      } while (nextToken);
+
+      setAllObjects(allContents);
+      setHasMore(false);
+      setContinuationToken(undefined);
+    } catch (error) {
+      console.error('Error fetching all S3 objects:', error);
+      onError(error instanceof Error ? error.message : 'Failed to fetch all S3 objects');
+    } finally {
+      setLoading(false);
+      setLoadingAll(false);
     }
   };
 
@@ -853,13 +890,20 @@ export function S3BucketBrowser({ onError, selectedKnowledgeBase }: S3BucketBrow
       )}
 
       {hasMore && (
-        <div className="text-center">
+        <div className="flex items-center justify-center gap-3">
           <button
             onClick={() => fetchObjects(false)}
             disabled={loading}
             className="px-6 py-2 bg-slate-600 dark:bg-slate-700 text-white rounded-lg hover:bg-slate-700 dark:hover:bg-slate-600 transition-colors disabled:opacity-50"
           >
-            {loading ? 'Loading...' : 'Load More'}
+            {loading && !loadingAll ? 'Loading...' : 'Load More'}
+          </button>
+          <button
+            onClick={fetchAllObjects}
+            disabled={loading}
+            className="px-6 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors disabled:opacity-50"
+          >
+            {loadingAll ? 'Loading All...' : 'Load All'}
           </button>
         </div>
       )}
