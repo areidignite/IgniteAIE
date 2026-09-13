@@ -390,123 +390,167 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (awsKnowledgeBaseId && useKnowledgeBase && processedAttachments.length === 0) {
-      const endpoint = `https://bedrock-agent-runtime.${awsRegion}.amazonaws.com/retrieveAndGenerate`;
+    async function doRetrieve(searchQuery: string, kbId: string, numResults: number): Promise<any[]> {
+      const retrieveEndpoint = `https://bedrock-agent-runtime.${awsRegion}.amazonaws.com/knowledgebases/${kbId}/retrieve`;
+      const retrieveBody = JSON.stringify({
+        retrievalQuery: { text: searchQuery },
+        retrievalConfiguration: {
+          vectorSearchConfiguration: {
+            numberOfResults: numResults,
+            overrideSearchType: "HYBRID"
+          }
+        }
+      });
+      const retrieveHeaders = await signRequest(
+        "POST", retrieveEndpoint, retrieveBody, awsRegion, "bedrock", awsAccessKeyId!, awsSecretAccessKey!
+      );
+      const resp = await fetch(retrieveEndpoint, { method: "POST", headers: retrieveHeaders, body: retrieveBody });
+      if (!resp.ok) {
+        console.error("Retrieve failed:", resp.status, await resp.text());
+        return [];
+      }
+      const data = await resp.json();
+      return data.retrievalResults || [];
+    }
 
+    if (awsKnowledgeBaseId && useKnowledgeBase && processedAttachments.length === 0) {
       const finalModelArn = resolveModelId();
       console.log('Knowledge Base modelArn resolved to:', finalModelArn);
 
-      let enhancedQuery = query;
       const qLower = query.toLowerCase();
-      const isNameSearch = /\b(find|locate|search|look for|get|show|where|who)\b/.test(qLower)
-        && /[A-Z][a-z]+ [A-Z][a-z]+/.test(query);
+      const nameMatch = query.match(/[A-Z][a-z]+\s+[A-Z][a-z]+/);
+      const isNameSearch = nameMatch && /\b(find|locate|search|look for|get|show|where|who)\b/.test(qLower);
       const isResumeQuery = qLower.includes('candidate') || qLower.includes('resume')
         || qLower.includes('cv') || qLower.includes('biography') || qLower.includes('profile');
+      const useMultiPassRetrieval = isNameSearch || isResumeQuery;
 
-      if (isNameSearch || isResumeQuery) {
-        enhancedQuery = `${query}\n\nIMPORTANT: Search ALL source documents thoroughly, including their filenames, headers, and full text content. Look for the person's name or keywords anywhere in the document — not just in the first few sentences. For each match, extract: 1) Full Name, 2) Key qualifications or details, 3) Source Document filename. If a document filename contains the person's name, that document is almost certainly relevant.`;
-      }
+      if (useMultiPassRetrieval) {
+        console.log("Using multi-pass retrieve + converse for name/resume search");
+        const extractedName = nameMatch ? nameMatch[0] : null;
 
-      const body: any = {
-        input: {
-          text: enhancedQuery
-        },
-        retrieveAndGenerateConfiguration: {
-          type: "KNOWLEDGE_BASE",
-          knowledgeBaseConfiguration: {
-            knowledgeBaseId: awsKnowledgeBaseId,
-            modelArn: finalModelArn,
-            retrievalConfiguration: {
-              vectorSearchConfiguration: {
-                numberOfResults: 50,
-                overrideSearchType: "HYBRID"
-              }
-            },
-            generationConfiguration: {
-              inferenceConfig: {
-                textInferenceConfig: {
-                  maxTokens: maxOutputTokens,
-                  temperature: 0.3
+        const pass1Results = await doRetrieve(query, awsKnowledgeBaseId, 50);
+        console.log(`Pass 1 (full query) returned ${pass1Results.length} results`);
+
+        let pass2Results: any[] = [];
+        if (extractedName && extractedName.toLowerCase() !== query.toLowerCase().trim()) {
+          pass2Results = await doRetrieve(extractedName, awsKnowledgeBaseId, 25);
+          console.log(`Pass 2 (name: "${extractedName}") returned ${pass2Results.length} results`);
+        }
+
+        const seenTexts = new Set<string>();
+        const allResults: any[] = [];
+        const filenameMap = new Map<string, string>();
+
+        for (const result of [...pass1Results, ...pass2Results]) {
+          const text = result?.content?.text || "";
+          const textKey = text.slice(0, 200);
+          if (seenTexts.has(textKey)) continue;
+          seenTexts.add(textKey);
+          allResults.push(result);
+
+          const s3Uri = result?.location?.s3Location?.uri;
+          if (s3Uri) {
+            const parts = s3Uri.split('/');
+            const filename = decodeURIComponent(parts[parts.length - 1] || s3Uri);
+            if (!filenameMap.has(s3Uri)) filenameMap.set(s3Uri, filename);
+          }
+          citations.push({ text, location: result?.location });
+        }
+
+        console.log(`Combined unique results: ${allResults.length}, unique sources: ${filenameMap.size}`);
+
+        const chunks = allResults.map(r => {
+          const text = r?.content?.text || "";
+          const s3Uri = r?.location?.s3Location?.uri;
+          const filename = s3Uri ? filenameMap.get(s3Uri) || "" : "";
+          return filename ? `[Source: ${filename}]\n${text}` : text;
+        });
+
+        const kbContext = chunks.join('\n\n---\n\n');
+        const converseEndpoint = `https://bedrock-runtime.${awsRegion}.amazonaws.com/model/${finalModelArn}/converse`;
+
+        const systemText = "You are a helpful assistant. You have been given search results from a document knowledge base. Each result includes the source filename in brackets. Use these results to answer the user's question accurately. Pay close attention to source filenames — if a filename contains a person's name, that document is almost certainly about that person. If you find relevant information, present it clearly. If you truly cannot find the requested information in any result, say so.";
+
+        const converseBody = JSON.stringify({
+          messages: [{
+            role: "user",
+            content: [{ text: `Search results from knowledge base:\n\n${kbContext}\n\n---\n\nQuestion: ${query}` }]
+          }],
+          system: [{ text: systemText }],
+          inferenceConfig: { maxTokens: maxOutputTokens, temperature: 0.3 }
+        });
+
+        const converseHeaders = await signRequest(
+          "POST", converseEndpoint, converseBody, awsRegion, "bedrock", awsAccessKeyId!, awsSecretAccessKey!
+        );
+        const converseResponse = await fetch(converseEndpoint, { method: "POST", headers: converseHeaders, body: converseBody });
+
+        if (!converseResponse.ok) {
+          const errorText = await converseResponse.text();
+          console.error("Converse API error:", errorText);
+          return new Response(
+            JSON.stringify({ error: "Failed to get response from Bedrock", details: errorText, status: converseResponse.status }),
+            { status: converseResponse.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const converseData = await converseResponse.json();
+        answer = converseData.output?.message?.content?.[0]?.text || "No answer generated";
+        answer = replaceSourceReferences(answer, filenameMap);
+      } else {
+        const endpoint = `https://bedrock-agent-runtime.${awsRegion}.amazonaws.com/retrieveAndGenerate`;
+
+        const body: any = {
+          input: { text: query },
+          retrieveAndGenerateConfiguration: {
+            type: "KNOWLEDGE_BASE",
+            knowledgeBaseConfiguration: {
+              knowledgeBaseId: awsKnowledgeBaseId,
+              modelArn: finalModelArn,
+              retrievalConfiguration: {
+                vectorSearchConfiguration: {
+                  numberOfResults: 50,
+                  overrideSearchType: "HYBRID"
                 }
               },
-              promptTemplate: {
-                textPromptTemplate: `You are a helpful assistant with access to a document knowledge base. Using the provided search results, answer the user's question accurately and thoroughly.
-
-IMPORTANT:
-- Pay attention to the SOURCE of each search result. Document filenames often contain the name of the person or subject they are about.
-- When asked about a specific person, check if any source document filenames contain that person's name. If so, that document is highly relevant.
-- Base your answer strictly on the search results provided. Do not make up information.
-- If the search results contain relevant information, present it clearly even if it seems like only a partial match.
-
-$search_results$
-
-$output_format_instructions$
-
-User question: $query$`
-              }
-            },
-            orchestrationConfiguration: {
-              promptTemplate: {
-                textPromptTemplate: `You are a helpful assistant that answers questions using the provided knowledge base. Use the conversation history and search results to provide accurate, thorough answers.
-
-$conversation_history$
-
-$output_format_instructions$
-
-User question: $query$`
+              generationConfiguration: {
+                inferenceConfig: {
+                  textInferenceConfig: { maxTokens: maxOutputTokens, temperature: 0.3 }
+                }
+              },
+              orchestrationConfiguration: {
+                promptTemplate: {
+                  textPromptTemplate: "You are a helpful assistant that answers questions using the provided knowledge base. Use the search results to provide accurate, thorough answers.\n\n$search_results$\n\n$output_format_instructions$\n\nUser question: $query$"
+                }
               }
             }
           }
+        };
+
+        const bodyString = JSON.stringify(body);
+        const headers = await signRequest("POST", endpoint, bodyString, awsRegion, "bedrock", awsAccessKeyId!, awsSecretAccessKey!);
+
+        console.log("DEBUG: Sending request to Bedrock Knowledge Base");
+        const bedrockResponse = await fetch(endpoint, { method: "POST", headers, body: bodyString });
+
+        if (!bedrockResponse.ok) {
+          const errorText = await bedrockResponse.text();
+          console.error("Bedrock API error:", errorText);
+          return new Response(
+            JSON.stringify({ error: "Failed to get response from Bedrock Knowledge Base", details: errorText, status: bedrockResponse.status }),
+            { status: bedrockResponse.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
         }
-      };
 
-      const bodyString = JSON.stringify(body);
-      const headers = await signRequest(
-        "POST",
-        endpoint,
-        bodyString,
-        awsRegion,
-        "bedrock",
-        awsAccessKeyId,
-        awsSecretAccessKey
-      );
+        const bedrockData = await bedrockResponse.json();
+        answer = bedrockData.output?.text || "No answer generated";
 
-      console.log("DEBUG: Sending request to Bedrock Knowledge Base");
-
-      const bedrockResponse = await fetch(endpoint, {
-        method: "POST",
-        headers,
-        body: bodyString,
-      });
-
-      if (!bedrockResponse.ok) {
-        const errorText = await bedrockResponse.text();
-        console.error("Bedrock API error:", errorText);
-        return new Response(
-          JSON.stringify({
-            error: "Failed to get response from Bedrock Knowledge Base",
-            details: errorText,
-            status: bedrockResponse.status,
-          }),
-          {
-            status: bedrockResponse.status,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
-
-      const bedrockData = await bedrockResponse.json();
-      answer = bedrockData.output?.text || "No answer generated";
-
-      if (answer.includes("unable to assist")) {
-        console.error("CONTENT FILTER TRIGGERED - Full response:", JSON.stringify(bedrockData, null, 2));
-      }
-
-      if (bedrockData.citations) {
-        const { allRefs, filenameMap } = extractCitations(bedrockData.citations);
-        citations = allRefs;
-        answer = replaceSourceReferences(answer, filenameMap);
-        console.log("DEBUG: Extracted citations count:", citations.length);
+        if (bedrockData.citations) {
+          const { allRefs, filenameMap } = extractCitations(bedrockData.citations);
+          citations = allRefs;
+          answer = replaceSourceReferences(answer, filenameMap);
+          console.log("DEBUG: Extracted citations count:", citations.length);
+        }
       }
     } else if (awsKnowledgeBaseId && useKnowledgeBase && processedAttachments.length > 0) {
       console.log("Using KB Retrieve + Converse with attachments");
