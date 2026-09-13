@@ -397,8 +397,14 @@ Deno.serve(async (req: Request) => {
       console.log('Knowledge Base modelArn resolved to:', finalModelArn);
 
       let enhancedQuery = query;
-      if (query.toLowerCase().includes('candidate') || query.toLowerCase().includes('resume')) {
-        enhancedQuery = `${query}\n\nIMPORTANT: For each candidate you identify, extract their full name from the source document. Look for names at the beginning of documents or in header sections. Include the source document filename in your response. Present the information in a clear list format with: 1) Candidate Name, 2) Certifications, 3) Source Document.`;
+      const qLower = query.toLowerCase();
+      const isNameSearch = /\b(find|locate|search|look for|get|show|where|who)\b/.test(qLower)
+        && /[A-Z][a-z]+ [A-Z][a-z]+/.test(query);
+      const isResumeQuery = qLower.includes('candidate') || qLower.includes('resume')
+        || qLower.includes('cv') || qLower.includes('biography') || qLower.includes('profile');
+
+      if (isNameSearch || isResumeQuery) {
+        enhancedQuery = `${query}\n\nIMPORTANT: Search ALL source documents thoroughly, including their filenames, headers, and full text content. Look for the person's name or keywords anywhere in the document — not just in the first few sentences. For each match, extract: 1) Full Name, 2) Key qualifications or details, 3) Source Document filename. If a document filename contains the person's name, that document is almost certainly relevant.`;
       }
 
       const body: any = {
@@ -420,11 +426,17 @@ Deno.serve(async (req: Request) => {
               inferenceConfig: {
                 textInferenceConfig: {
                   maxTokens: maxOutputTokens,
-                  temperature: 0.7
+                  temperature: 0.3
                 }
               },
               promptTemplate: {
-                textPromptTemplate: `You are a helpful assistant. Using the provided search results, answer the user's question accurately and thoroughly. If the search results don't contain enough information to fully answer the question, say so clearly.
+                textPromptTemplate: `You are a helpful assistant with access to a document knowledge base. Using the provided search results, answer the user's question accurately and thoroughly.
+
+IMPORTANT:
+- Pay attention to the SOURCE of each search result. Document filenames often contain the name of the person or subject they are about.
+- When asked about a specific person, check if any source document filenames contain that person's name. If so, that document is highly relevant.
+- Base your answer strictly on the search results provided. Do not make up information.
+- If the search results contain relevant information, present it clearly even if it seems like only a partial match.
 
 $search_results$
 
