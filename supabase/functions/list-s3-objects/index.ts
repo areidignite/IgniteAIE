@@ -226,6 +226,7 @@ Deno.serve(async (req: Request) => {
 
     const s3Url = new URL(`https://${bucketName}.s3.${awsRegion}.amazonaws.com/`);
     s3Url.searchParams.set("list-type", "2");
+    s3Url.searchParams.set("encoding-type", "url");
     s3Url.searchParams.set("max-keys", maxKeys);
     if (prefix) {
       s3Url.searchParams.set("prefix", prefix);
@@ -285,19 +286,42 @@ Deno.serve(async (req: Request) => {
 
     const xmlText = await s3Response.text();
 
+    // When encoding-type=url is set, S3 URL-encodes the Key (and other
+    // path-like fields) in its XML response. We also need to handle standard
+    // XML entities like &amp; that appear in all XML responses.
+    function decodeXmlEntities(s: string): string {
+      return s
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&apos;/g, "'")
+        .replace(/&quot;/g, '"');
+    }
+
+    function decodeS3Key(raw: string): string {
+      const xmlDecoded = decodeXmlEntities(raw);
+      // S3 URL-encodes keys when encoding-type=url is set; spaces become "+"
+      // and special chars become %XX. decodeURIComponent doesn't handle "+".
+      try {
+        return decodeURIComponent(xmlDecoded.replace(/\+/g, "%20"));
+      } catch {
+        return xmlDecoded;
+      }
+    }
+
     const contents: S3Object[] = [];
     const contentsRegex = /<Contents>([\s\S]*?)<\/Contents>/g;
     const contentMatches = xmlText.matchAll(contentsRegex);
 
     for (const match of contentMatches) {
       const contentXml = match[1];
-      const key = contentXml.match(/<Key>(.*?)<\/Key>/)?.[1] || "";
+      const rawKey = contentXml.match(/<Key>(.*?)<\/Key>/)?.[1] || "";
       const size = parseInt(contentXml.match(/<Size>(.*?)<\/Size>/)?.[1] || "0");
       const lastModified = contentXml.match(/<LastModified>(.*?)<\/LastModified>/)?.[1] || "";
       const etag = contentXml.match(/<ETag>(.*?)<\/ETag>/)?.[1] || "";
 
       contents.push({
-        Key: key,
+        Key: decodeS3Key(rawKey),
         Size: size,
         LastModified: lastModified,
         ETag: etag,
@@ -305,7 +329,8 @@ Deno.serve(async (req: Request) => {
     }
 
     const isTruncated = xmlText.match(/<IsTruncated>(.*?)<\/IsTruncated>/)?.[1] === "true";
-    const nextToken = xmlText.match(/<NextContinuationToken>(.*?)<\/NextContinuationToken>/)?.[1] || undefined;
+    const rawNextToken = xmlText.match(/<NextContinuationToken>(.*?)<\/NextContinuationToken>/)?.[1] || undefined;
+    const nextToken = rawNextToken ? decodeXmlEntities(rawNextToken) : undefined;
 
     const response: ListObjectsResponse = {
       Contents: contents,
