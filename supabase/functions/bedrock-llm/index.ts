@@ -520,7 +520,7 @@ Deno.serve(async (req: Request) => {
               },
               orchestrationConfiguration: {
                 promptTemplate: {
-                  textPromptTemplate: "You are a helpful assistant that answers questions using the provided knowledge base. Use the search results to provide accurate, thorough answers.\n\n$search_results$\n\n$output_format_instructions$\n\nUser question: $query$"
+                  textPromptTemplate: "You are a helpful assistant that answers questions using the provided knowledge base. Use the conversation history and search results to provide accurate, thorough answers.\n\n$conversation_history$\n\n$output_format_instructions$\n\nUser question: $query$"
                 }
               }
             }
